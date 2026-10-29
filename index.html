@@ -740,7 +740,7 @@ const DIMS = {
     const C = someone(c.target, c.neighbor), C2 = someone(c.target, c.neighbor, C);
     const ev = rand([
       { title: 'Group Photo', text: `${cn} and ${C} playing cards. Timestamp: ${hour}.`, detail: `${cn} playing cards with ${C} at ${hour}` },
-      { title: 'Text Message', text: `${C} to ${cn}, sent at ${hour}: "Thanks for keeping me company today."`, detail: `${C} thanking ${cn} for the company that day` },
+      { title: 'Text Message', text: `${C} to ${cn}, sent the next day: "Thanks for keeping me company yesterday at ${hour}. Let's do it again soon."`, detail: `${C} thanking ${cn} for keeping them company at ${hour}` },
       { title: 'Game Night Score Sheet', text: `Dated that day. Players: ${cn} and ${C}. ${C} won.`, detail: `${cn} playing games with ${C} that day` }
     ]);
     return { ev, story: true,
