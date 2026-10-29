@@ -677,10 +677,10 @@ function makeChar(exclude) {
   for (const [part, opts] of Object.entries(PERS[pers].rest)) feat[part] = rand(opts);
   return { tool, variant, name, pers, label: `${name} the ${label}`, kind: label.toLowerCase(), feat };
 }
-// A side character whose first name differs from everyone passed in (full names or first names).
+// A side character whose full name (name + tool) differs from everyone passed in. Shared first names are allowed.
 const someone = (...avoid) => {
-  const taken = new Set(avoid.filter(Boolean).map(a => a.split(' ')[0]));
-  let x; do { x = `${rand(NAMES)} the ${rand(TARGETS)}`; } while (taken.has(x.split(' ')[0])); return x;
+  const taken = new Set(avoid.filter(Boolean));
+  let x; do { x = `${rand(NAMES)} the ${rand(TARGETS)}`; } while (taken.has(x)); return x;
 };
 const ITEMS_OK = ['an umbrella', 'a pie', 'a laundry basket', 'a bag of birdseed', 'a library book', 'a potted fern', 'a jar of pickles'];
 const ITEMS_BAD = ['a crowbar', 'a ski mask', 'a can of spray paint', 'a big empty sack', 'a pair of bolt cutters'];
@@ -762,23 +762,47 @@ const DIMS = {
             say: rel === 'strangers' ? rand([`I have never even met ${target}.`, `I do not know ${target}. We have never met.`]) : `And I have never even met ${target}.` }]),
         storyWhy: () => `The ${ev.title.toLowerCase()} shows ${ev.detail}. That does not match.` };
     }
-    const ev = rand([
-      { title: 'Diary Page', text: `From ${cn}'s diary: "The ${S.name} is too spooky. I never go in there."`, detail: `${cn} thinks the ${S.name} is too spooky to go in` },
-      { title: 'Letter to a Cousin', text: `${cn} wrote: "I never go in the ${S.name}. It gives me the creeps."`, detail: `${cn} never goes in the ${S.name}` }
-    ]);
-    return { ev, story: true,
-      stmt: { lie: `${cn} loves the ${S.name}. Goes in there all the time.`, truth: `${cn} does not like the ${S.name}. Says it is spooky.` },
-      why: `The ${ev.title.toLowerCase()} shows ${ev.detail}. My client does not go in there.`,
+    // c.roomFeel is the client's true feeling about the room: 'spooky', 'favorite', or 'daily'.
+    const feel = c.roomFeel;
+    const ev = rand({
+      spooky: [
+        { title: 'Diary Page', text: `From ${cn}'s diary: "The ${S.name} is too spooky. I never go in there."`, detail: `${cn} thinks the ${S.name} is too spooky to go in` },
+        { title: 'Letter to a Cousin', text: `${cn} wrote: "I never go in the ${S.name}. It gives me the creeps."`, detail: `${cn} never goes in the ${S.name}` }
+      ],
+      favorite: [
+        { title: 'Postcard', text: `From ${cn}: "The ${S.name} is my favorite place in the whole house. So peaceful."`, detail: `the ${S.name} is ${cn}'s favorite place` },
+        { title: 'Photo Album', text: `Dozens of photos of ${cn} in the ${S.name}. The album is labeled "My Happy Place."`, detail: `${cn} calls the ${S.name} "My Happy Place"` }
+      ],
+      daily: [
+        { title: 'Sign-In Sheet', text: `Taped to the ${S.name} door. ${cn} signed in every day this month.`, detail: `${cn} goes in the ${S.name} every day` },
+        { title: 'Wall Calendar', text: `${cn}'s calendar says "water the plant in the ${S.name}" on every single day.`, detail: `${cn} goes in the ${S.name} every day to water a plant` }
+      ]
+    }[feel]);
+    const stmt = {
+      spooky: { lie: `${cn} loves the ${S.name}. Goes in there all the time.`, truth: `${cn} does not like the ${S.name}. Says it is spooky.` },
+      favorite: { lie: `${cn} hates the ${S.name}. Always complaining about it.`, truth: `${cn} seems to really like the ${S.name}.` },
+      daily: { lie: `${cn} never goes in the ${S.name}. So why were they there? Suspicious.`, truth: `${cn} is in the ${S.name} every day. Nothing unusual about that.` }
+    }[feel];
+    const point = {
+      spooky: 'My client does not go in there.',
+      favorite: 'My client does not hate it there. My client loves it.',
+      daily: 'My client is in there every day. That is not suspicious.'
+    }[feel];
+    return { ev, story: true, stmt,
+      why: `The ${ev.title.toLowerCase()} shows ${ev.detail}. ${point}`,
       q: `How do you feel about the ${S.name}?`,
       opts: shuffle([
-        { text: 'It is spooky. I stay out.', ok: true, say: rand([`I do not go in the ${S.name}. It is too spooky.`, `I stay out of the ${S.name}. It frightens me.`]) },
-        { text: 'It is my favorite room.', ok: false, say: `The ${S.name} is my favorite room, though.` },
-        { text: 'I go in there every day.', ok: false, say: `I do go in the ${S.name} every day, though.` }]),
+        { text: 'It is spooky. I stay out.', ok: feel === 'spooky',
+          say: feel === 'spooky' ? rand([`I do not go in the ${S.name}. It is too spooky.`, `I stay out of the ${S.name}. It frightens me.`]) : `I do not go in the ${S.name}. It is too spooky.` },
+        { text: 'It is my favorite place.', ok: feel === 'favorite',
+          say: feel === 'favorite' ? rand([`The ${S.name} is my favorite place. I would never mess it up.`, `I love the ${S.name}. It is my favorite place.`]) : `The ${S.name} is my favorite place, though.` },
+        { text: 'I go in there every day.', ok: feel === 'daily',
+          say: feel === 'daily' ? rand([`I go in the ${S.name} every day. It is part of my routine.`, `I am in the ${S.name} every day. There is a plant in there.`]) : `I do go in the ${S.name} every day, though.` }]),
       storyWhy: () => `The ${ev.title.toLowerCase()} shows ${ev.detail}. That does not match.` };
   },
   company: c => {
     const cn = c.client.name, { hour } = c;
-    const C = someone(c.target, c.neighbor, c.client.name, c.witness.name), C2 = someone(c.target, c.neighbor, c.client.name, c.witness.name, C);
+    const C = someone(c.target, c.neighbor, c.client.label, c.witness.label), C2 = someone(c.target, c.neighbor, c.client.label, c.witness.label, C);
     const ev = rand([
       { title: 'Group Photo', text: `${cn} and ${C} playing cards. Timestamp: ${hour}.`, detail: `${cn} playing cards with ${C} at ${hour}` },
       { title: 'Text Message', text: `${C} to ${cn}, sent the next day: "Thanks for keeping me company yesterday at ${hour}. Let's do it again soon."`, detail: `${C} thanking ${cn} for keeping them company at ${hour}` },
@@ -844,12 +868,13 @@ function genCase(n) {
   const [Rs, Rc, Ro] = shuffle(RESIDUES);
   const hour = rand(HOURS);
   const person = Math.random() < 0.5;
-  const target = person ? someone(client.name, witness.name) : null;
+  const target = person ? someone(client.label, witness.label) : null;
   const charge = person ? `${client.label} ${chargeVerb(client.tool, true)} ${target}.` : `${client.label} ${chargeVerb(client.tool, false)} in the ${S.name}.`;
   const mode = Math.random() < 0.5 ? 'lies' : 'story';
   const c = { n, client, witness, S, P, O, Rs, Rc, Ro, hour, person, target, charge, mode };
-  c.neighbor = someone(target, client.name, witness.name);
+  c.neighbor = someone(target, client.label, witness.label);
   c.rel = person ? rand(['friends', 'annoyed', 'strangers']) : null;
+  c.roomFeel = person ? null : rand(['spooky', 'favorite', 'daily']);
 
   // Case size varies: testimony uses 3-5 facts, story asks 3-4 questions.
   const pool = Object.keys(DIMS).filter(d => mode === 'lies' || d !== 'prints');
