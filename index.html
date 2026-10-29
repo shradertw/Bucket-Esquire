@@ -621,8 +621,12 @@ function genCase(n) {
       { dim: 'residue', q: `What were you doing at the time?`, opts: shuffle([Rc, Rs, Ro]).map(r => ({ text: `${cap(r.act)}.`, ok: r === Rc, key: r.act })) },
       { dim: 'motive', q: person ? `How do you feel about ${target}?` : `How do you feel about the ${S.name}?`,
         opts: shuffle(person
-          ? [{ text: 'We are close friends.', ok: true }, { text: 'I find them very annoying.', ok: false }, { text: 'Who? Never met them.', ok: false }]
-          : [{ text: 'It is spooky. I stay out.', ok: true }, { text: 'It is my favorite room.', ok: false }, { text: 'I go in there every day.', ok: false }]) }
+          ? [{ text: 'We are close friends.', ok: true, say: rand([`${target} and I are close friends. I would never do that to them.`, `${target} is one of my closest friends. Ask anyone.`]) },
+             { text: 'I find them very annoying.', ok: false, say: `To be honest, I find ${target} very annoying.` },
+             { text: 'Who? Never met them.', ok: false, say: `And I have never even met ${target}.` }]
+          : [{ text: 'It is spooky. I stay out.', ok: true, say: rand([`I do not go in the ${S.name}. It is too spooky.`, `I stay out of the ${S.name}. It frightens me.`]) },
+             { text: 'It is my favorite room.', ok: false, say: `The ${S.name} is my favorite room, though.` },
+             { text: 'I go in there every day.', ok: false, say: `I do go in the ${S.name} every day, though.` }]) }
     ];
   }
   return c;
@@ -1068,10 +1072,22 @@ function objectLie() {
 }
 
 /* ---------- mode B: build the story ---------- */
+// Turns the three chosen answers into one spoken statement from the client.
+function storyText(c) {
+  const [pl, act, mot] = c.questions.map((q, i) => q.opts[game.answers[i]]);
+  const room = pl.key, doing = act.key, h = c.hour;
+  const opener = rand([
+    `At ${h}, I was in the ${room}, ${doing}.`,
+    `I was in the ${room} at ${h}. I was ${doing}.`,
+    `I was ${doing} in the ${room} at ${h}.`,
+    `I spent that time in the ${room}, ${doing}.`
+  ]);
+  return `${opener} ${mot.say}`;
+}
 function tellStory() {
   const c = game.case; const cn = c.client.name;
   const wrongIdx = c.questions.findIndex((q, i) => !q.opts[game.answers[i]].ok);
-  const story = c.questions.map((q, i) => q.opts[game.answers[i]].text).join(' ');
+  const story = storyText(c);
   if (wrongIdx === -1) {
     talk([
       ['client', story, 'nervous', {}],
