@@ -111,7 +111,44 @@ const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(
 /* ---------- word lists ---------- */
 const NAMES = ['Abe','Bea','Carl','Cora','Dot','Edna','Frank','Fern','Gus','Hank','Hazel','Ida','Jo','Ken','Kip','Lou','Mabel','Marv','Mort','Ned','Opal','Pip','Pearl','Polly','Ruth','Sal','Stan','Tess','Toby','Walt','Wendy','Clem','Wilma','Mo','Tina'];
 const TARGETS = ['Mop','Broom','Lamp','Sock','Rolling Pin','Toothbrush','Ladle','Whisk','Sponge','Stapler','Remote','Teaspoon','Doormat','Oven Mitt'];
-const PVERBS = ['insulted','pickpocketed','pranked','spilled soup on','tripped','ghosted','sneezed on','short-changed','scared','ate the leftovers of'];
+const PVERBS = ['insulted','pickpocketed','pranked','tripped','ghosted','sneezed on','short-changed','scared','ate the leftovers of'];
+// Charges only a tool with the matching tag can be accused of. p: done to someone; l: done in a room.
+const TAG_CHARGES = {
+  liquid:   { p: ['spilled soup on'] },
+  stirs:    { p: ['stirred up trouble with'] },
+  scoops:   { p: ['took the last scoop of ice cream from'] },
+  serves:   { p: ['served undersized portions to'] },
+  pokes:    { p: ['poked'] },
+  beats:    { p: ['egged on'], l: ['whipped up a scandal'] },
+  flips:    { p: ['flipped on'] },
+  spreads:  { p: ['spread rumors about'] },
+  breakable:{ l: ['left sharp chips all over the floor'] },
+  hot:      { p: ['burned'] },
+  boils:    { l: ['boiled over'] },
+  whistles: { p: ['whistled at'] },
+  holes:    { l: ['dripped everywhere'] },
+  digs:     { p: ['dug up dirt on'], l: ['dug a hole'] },
+  rock:     { l: ['chipped the floor tiles'] },
+  breaks:   { l: ['broke a window'] },
+  gathers:  { l: ['left piles of leaves'] },
+  waters:   { p: ['sprayed'], l: ['overwatered the plants'] },
+  hits:     { p: ['pounded on the door of'] },
+  turns:    { p: ['loosened the bolts on the bike of'] },
+  screws:   { p: ['screwed over'] },
+  cuts:     { p: ['cut in line in front of'] },
+  teeth:    { l: ['chewed up the baseboards'] },
+  unclogs:  { l: ['flooded the sink'] },
+  sweeps:   { l: ['swept dirt under the rug'] },
+  absorbs:  { p: ['soaked'] },
+  scrubs:   { l: ['scrubbed the paint off the wall'] },
+  electric: { l: ['blew a fuse'] }
+};
+// Half the time (when one exists), the charge comes from the client's own tags.
+function chargeVerb(tool, person) {
+  const key = person ? 'p' : 'l';
+  const pool = TOOLS[tool].tags.flatMap(t => (TAG_CHARGES[t] && TAG_CHARGES[t][key]) || []);
+  return pool.length && Math.random() < 0.5 ? rand(pool) : rand(person ? PVERBS : LVERBS);
+}
 const LVERBS = ['littered','loitered','trespassed','made a huge mess','threw a loud party','left the faucet running','sang off-key','tracked dirt'];
 const ROOMS = [
   { name: 'kitchen', landmark: 'the refrigerator' },
@@ -145,27 +182,74 @@ const DECOYS = [
 const HAIRC = ['#3b2a1e','#7a4a22','#d9a441','#c94f2b','#222222','#9a9a9a','#e8e8e8','#5b3fa0'];
 const BODYC = ['#d9534f','#4a90c2','#5cb85c','#e8a33d','#8e6bbf','#e07aa8','#3fb3a8','#c8b560'];
 
+const MET = '#c3cad1', STEEL = '#8c96a0', WOOD = '#a5713f';
+// Each tool: label, tags (what the thing is and does), face/hair anchor points, and a simple drawing.
+// Dialogue lines and charges are only ever chosen from tags a tool actually has.
 const TOOLS = {
-  hammer:  { label: 'Hammer', face: { x: 50, y: 37, r: 13 }, hair: { x: 50, y: 16, w: 22 },
-    draw: c => `<rect x="45" y="52" width="10" height="88" rx="3" fill="#a5713f"/><rect x="16" y="16" width="68" height="38" rx="5" fill="#8c96a0"/><rect x="16" y="16" width="68" height="8" rx="4" fill="#a9b2bb"/>` },
-  spatula: { label: 'Spatula', face: { x: 50, y: 32, r: 15 }, hair: { x: 50, y: 10, w: 22 },
+  /* kitchen utensils */
+  spoon:   { label: 'Spoon', tags: ['utensil','metal','liquid','stirs','scoops','milk'], face: { x: 50, y: 38, r: 14 }, hair: { x: 50, y: 10, w: 16 },
+    draw: c => `<rect x="46" y="62" width="8" height="78" rx="4" fill="${c}"/><ellipse cx="50" cy="38" rx="22" ry="30" fill="${MET}"/>` },
+  fork:    { label: 'Fork', tags: ['utensil','metal','prongs','pokes'], face: { x: 50, y: 48, r: 12 }, hair: { x: 50, y: 6, w: 20 },
+    draw: c => `<rect x="46" y="64" width="8" height="76" rx="4" fill="${c}"/><rect x="26" y="32" width="48" height="34" rx="9" fill="${MET}"/>${[26,39,53,66].map(x => `<rect x="${x}" y="6" width="8" height="34" rx="4" fill="${MET}"/>`).join('')}` },
+  ladle:   { label: 'Ladle', tags: ['utensil','liquid','scoops','serves','deep','handle'], face: { x: 50, y: 112, r: 16 }, hair: { x: 50, y: 90, w: 26 },
+    draw: c => `<path d="M50 92 L50 14 Q50 4 40 6" stroke="${c}" stroke-width="8" fill="none" stroke-linecap="round"/><path d="M16 90 Q16 138 50 138 Q84 138 84 90 Z" fill="${MET}"/>` },
+  whisk:   { label: 'Whisk', tags: ['utensil','metal','beats','wires'], face: { x: 50, y: 52, r: 12 }, hair: { x: 50, y: 12, w: 14 },
+    draw: c => `${[26,17,8].map(rx => `<ellipse cx="50" cy="52" rx="${rx}" ry="42" fill="none" stroke="${MET}" stroke-width="3"/>`).join('')}<rect x="44" y="90" width="12" height="50" rx="5" fill="${c}"/>` },
+  spatula: { label: 'Spatula', tags: ['utensil','flips','flat'], face: { x: 50, y: 32, r: 15 }, hair: { x: 50, y: 10, w: 22 },
     draw: c => `<rect x="46" y="70" width="8" height="70" rx="3" fill="#333"/><rect x="24" y="10" width="52" height="64" rx="10" fill="${c}"/><rect x="34" y="52" width="5" height="16" rx="2" fill="#0003"/><rect x="47.5" y="52" width="5" height="16" rx="2" fill="#0003"/><rect x="61" y="52" width="5" height="16" rx="2" fill="#0003"/>` },
-  kettle:  { label: 'Kettle', face: { x: 50, y: 102, r: 17 }, hair: { x: 50, y: 58, w: 14 },
-    draw: c => `<path d="M24 72 Q50 30 76 72" stroke="#333" stroke-width="5" fill="none"/><path d="M84 104 L100 84 L97 80 L82 94 Z" fill="${c}"/><path d="M14 132 Q10 72 50 64 Q90 72 86 132 Z" fill="${c}"/><ellipse cx="50" cy="64" rx="17" ry="6" fill="#0003"/><circle cx="50" cy="57" r="4" fill="#333"/>` },
-  toaster: { label: 'Toaster', face: { x: 50, y: 102, r: 18 }, hair: { x: 50, y: 60, w: 30 },
-    draw: c => `<rect x="12" y="62" width="76" height="76" rx="16" fill="${c}"/><rect x="26" y="57" width="18" height="7" rx="3" fill="#333"/><rect x="56" y="57" width="18" height="7" rx="3" fill="#333"/><rect x="86" y="88" width="8" height="14" rx="2" fill="#333"/>` },
-  wrench:  { label: 'Wrench', face: { x: 50, y: 48, r: 11 }, hair: { x: 50, y: 34, w: 12 },
-    draw: c => `<rect x="43" y="56" width="14" height="84" rx="6" fill="#9aa4ad"/><path d="M22 18 L22 44 Q22 66 50 66 Q78 66 78 44 L78 18 L63 18 L63 34 L37 34 L37 18 Z" fill="#8c96a0"/>` },
-  pan:     { label: 'Frying Pan', face: { x: 50, y: 58, r: 18 }, hair: { x: 50, y: 24, w: 24 },
-    draw: c => `<rect x="46" y="88" width="8" height="52" rx="3" fill="#333"/><circle cx="50" cy="58" r="34" fill="#3a3a3a"/><circle cx="50" cy="58" r="28" fill="${c}"/>` },
-  plunger: { label: 'Plunger', face: { x: 50, y: 33, r: 13 }, hair: { x: 50, y: 14, w: 20 },
-    draw: c => `<rect x="46" y="48" width="8" height="92" rx="3" fill="#b07b46"/><path d="M18 50 Q18 14 50 14 Q82 14 82 50 Z" fill="${c}"/><rect x="16" y="46" width="68" height="7" rx="3" fill="#0003"/>` },
-  mug:     { label: 'Mug', face: { x: 48, y: 100, r: 17 }, hair: { x: 48, y: 62, w: 24 },
+  knife:   { label: 'Butter Knife', tags: ['utensil','metal','spreads','dull','flat'], face: { x: 50, y: 48, r: 10 }, hair: { x: 50, y: 10, w: 10 },
+    draw: c => `<path d="M38 84 L38 24 Q40 6 62 8 L62 84 Z" fill="${MET}"/><rect x="42" y="80" width="16" height="60" rx="6" fill="${c}"/>` },
+  /* dishes & cookware */
+  plate:   { label: 'Plate', tags: ['dish','flat','breakable','serves','ceramic'], face: { x: 50, y: 92, r: 18 }, hair: { x: 50, y: 52, w: 26 },
+    draw: c => `<circle cx="50" cy="94" r="44" fill="#f6f2ea" stroke="${c}" stroke-width="7"/><circle cx="50" cy="94" r="30" fill="none" stroke="#0001" stroke-width="2"/>` },
+  bowl:    { label: 'Bowl', tags: ['dish','liquid','deep','breakable','ceramic','milk'], face: { x: 50, y: 108, r: 16 }, hair: { x: 50, y: 80, w: 30 },
+    draw: c => `<path d="M8 84 L92 84 Q90 138 50 138 Q10 138 8 84 Z" fill="${c}"/><ellipse cx="50" cy="84" rx="42" ry="7" fill="#0002"/>` },
+  mug:     { label: 'Mug', tags: ['dish','liquid','hot','handle','ceramic','breakable','milk'], face: { x: 48, y: 100, r: 17 }, hair: { x: 48, y: 62, w: 24 },
     draw: c => `<path d="M74 80 Q96 80 96 100 Q96 120 74 120" stroke="${c}" stroke-width="8" fill="none"/><rect x="20" y="62" width="56" height="76" rx="8" fill="${c}"/><rect x="20" y="62" width="56" height="7" rx="3" fill="#fff5"/>` },
-  colander:{ label: 'Colander', face: { x: 50, y: 96, r: 17 }, hair: { x: 50, y: 70, w: 30 },
-    draw: c => `<rect x="4" y="70" width="14" height="6" rx="3" fill="${c}"/><rect x="82" y="70" width="14" height="6" rx="3" fill="${c}"/><path d="M12 70 L88 70 Q86 136 50 136 Q14 136 12 70 Z" fill="${c}"/><circle cx="36" cy="125" r="2" fill="#0005"/><circle cx="50" cy="128" r="2" fill="#0005"/><circle cx="64" cy="125" r="2" fill="#0005"/><circle cx="43" cy="118" r="2" fill="#0005"/><circle cx="57" cy="118" r="2" fill="#0005"/>` }
+  pan:     { label: 'Frying Pan', tags: ['cookware','hot','nonstick','handle'], face: { x: 50, y: 58, r: 18 }, hair: { x: 50, y: 24, w: 24 },
+    draw: c => `<rect x="46" y="88" width="8" height="52" rx="3" fill="#333"/><circle cx="50" cy="58" r="34" fill="#3a3a3a"/><circle cx="50" cy="58" r="28" fill="${c}"/>` },
+  pot:     { label: 'Pot', tags: ['cookware','hot','liquid','boils','deep','metal'], face: { x: 50, y: 104, r: 17 }, hair: { x: 50, y: 58, w: 20 },
+    draw: c => `<rect x="2" y="82" width="16" height="8" rx="3" fill="#333"/><rect x="82" y="82" width="16" height="8" rx="3" fill="#333"/><rect x="14" y="70" width="72" height="68" rx="6" fill="${c}"/><ellipse cx="50" cy="70" rx="38" ry="8" fill="#555"/><circle cx="50" cy="61" r="5" fill="#333"/>` },
+  kettle:  { label: 'Kettle', tags: ['cookware','hot','liquid','boils','whistles','handle'], face: { x: 50, y: 102, r: 17 }, hair: { x: 50, y: 58, w: 14 },
+    draw: c => `<path d="M24 72 Q50 30 76 72" stroke="#333" stroke-width="5" fill="none"/><path d="M84 104 L100 84 L97 80 L82 94 Z" fill="${c}"/><path d="M14 132 Q10 72 50 64 Q90 72 86 132 Z" fill="${c}"/><ellipse cx="50" cy="64" rx="17" ry="6" fill="#0003"/><circle cx="50" cy="57" r="4" fill="#333"/>` },
+  colander:{ label: 'Colander', tags: ['cookware','holes','drains'], face: { x: 50, y: 96, r: 17 }, hair: { x: 50, y: 70, w: 30 },
+    draw: c => `<rect x="4" y="70" width="14" height="6" rx="3" fill="${c}"/><rect x="82" y="70" width="14" height="6" rx="3" fill="${c}"/><path d="M12 70 L88 70 Q86 136 50 136 Q14 136 12 70 Z" fill="${c}"/><circle cx="36" cy="125" r="2" fill="#0005"/><circle cx="50" cy="128" r="2" fill="#0005"/><circle cx="64" cy="125" r="2" fill="#0005"/><circle cx="43" cy="118" r="2" fill="#0005"/><circle cx="57" cy="118" r="2" fill="#0005"/>` },
+  /* garden & dig tools */
+  shovel:  { label: 'Shovel', tags: ['garden','digs','dirt','handle'], face: { x: 50, y: 32, r: 13 }, hair: { x: 50, y: 8, w: 16 },
+    draw: c => `<rect x="46" y="52" width="8" height="88" rx="3" fill="${WOOD}"/><path d="M24 56 L24 22 Q50 -2 76 22 L76 56 Z" fill="${c}"/>` },
+  pickaxe: { label: 'Pickaxe', tags: ['garden','digs','rock','pointed','breaks'], face: { x: 50, y: 34, r: 13 }, hair: { x: 50, y: 18, w: 14 },
+    draw: c => `<rect x="46" y="40" width="8" height="100" rx="3" fill="${WOOD}"/><path d="M4 46 Q50 0 96 46 L84 48 Q50 22 16 48 Z" fill="${STEEL}"/><circle cx="50" cy="34" r="16" fill="${c}"/>` },
+  rake:    { label: 'Rake', tags: ['garden','prongs','gathers','leaves'], face: { x: 50, y: 36, r: 12 }, hair: { x: 50, y: 20, w: 14 },
+    draw: c => `<rect x="46" y="48" width="8" height="92" rx="3" fill="${WOOD}"/>${[12,22,32,42,52,62,72,82].map(x => `<rect x="${x}" y="6" width="5" height="22" rx="2" fill="${STEEL}"/>`).join('')}<rect x="10" y="24" width="80" height="8" rx="3" fill="${STEEL}"/><rect x="34" y="22" width="32" height="30" rx="7" fill="${c}"/>` },
+  trowel:  { label: 'Trowel', tags: ['garden','digs','dirt','pointed','small'], face: { x: 50, y: 50, r: 14 }, hair: { x: 50, y: 14, w: 10 },
+    draw: c => `<path d="M50 4 Q88 40 72 80 L28 80 Q12 40 50 4 Z" fill="${STEEL}"/><rect x="47" y="78" width="6" height="14" fill="#666"/><rect x="42" y="90" width="16" height="50" rx="6" fill="${c}"/>` },
+  wateringcan: { label: 'Watering Can', tags: ['garden','liquid','waters','holes','handle'], face: { x: 46, y: 102, r: 17 }, hair: { x: 46, y: 64, w: 22 },
+    draw: c => `<path d="M28 64 Q46 28 64 64" stroke="#333" stroke-width="5" fill="none"/><path d="M74 112 L94 76 L100 80 L80 116 Z" fill="${c}"/><ellipse cx="97" cy="77" rx="5" ry="7" fill="#555"/><rect x="16" y="64" width="62" height="74" rx="8" fill="${c}"/>` },
+  /* workshop & cleaning */
+  hammer:  { label: 'Hammer', tags: ['workshop','hits','nails','handle'], face: { x: 50, y: 37, r: 13 }, hair: { x: 50, y: 16, w: 22 },
+    draw: c => `<rect x="45" y="52" width="10" height="88" rx="3" fill="${WOOD}"/><rect x="16" y="16" width="68" height="38" rx="5" fill="${STEEL}"/><rect x="16" y="16" width="68" height="8" rx="4" fill="#a9b2bb"/>` },
+  wrench:  { label: 'Wrench', tags: ['workshop','turns','grips','metal'], face: { x: 50, y: 48, r: 11 }, hair: { x: 50, y: 34, w: 12 },
+    draw: c => `<rect x="43" y="56" width="14" height="84" rx="6" fill="#9aa4ad"/><path d="M22 18 L22 44 Q22 66 50 66 Q78 66 78 44 L78 18 L63 18 L63 34 L37 34 L37 18 Z" fill="${STEEL}"/>` },
+  screwdriver: { label: 'Screwdriver', tags: ['workshop','turns','screws','pointed'], face: { x: 50, y: 94, r: 14 }, hair: { x: 50, y: 58, w: 16 },
+    draw: c => `<rect x="47" y="4" width="6" height="56" fill="${STEEL}"/><rect x="34" y="56" width="32" height="84" rx="13" fill="${c}"/>` },
+  saw:     { label: 'Saw', tags: ['workshop','cuts','teeth','sharp'], face: { x: 40, y: 80, r: 13 }, hair: { x: 40, y: 64, w: 14 },
+    draw: c => `<path d="M4 62 L74 48 L74 112 L4 98 Z" fill="#b5bec7"/>${[6,14,22,30,38,46,54,62].map(x => `<path d="M${x} ${99 + x * 0.19} l4 7 l4 -5" fill="#b5bec7"/>`).join('')}<rect x="70" y="40" width="26" height="80" rx="9" fill="${c}"/><rect x="77" y="62" width="12" height="30" rx="5" fill="#0003"/>` },
+  plunger: { label: 'Plunger', tags: ['cleaning','unclogs','suction','handle'], face: { x: 50, y: 33, r: 13 }, hair: { x: 50, y: 14, w: 20 },
+    draw: c => `<rect x="46" y="48" width="8" height="92" rx="3" fill="#b07b46"/><path d="M18 50 Q18 14 50 14 Q82 14 82 50 Z" fill="${c}"/><rect x="16" y="46" width="68" height="7" rx="3" fill="#0003"/>` },
+  broom:   { label: 'Broom', tags: ['cleaning','sweeps','bristles','handle'], face: { x: 50, y: 110, r: 16 }, hair: { x: 50, y: 74, w: 22 },
+    draw: c => `<rect x="46" y="0" width="8" height="82" rx="3" fill="${WOOD}"/><path d="M20 80 L80 80 L94 140 L6 140 Z" fill="#d9b45a"/><rect x="20" y="74" width="60" height="10" rx="3" fill="${c}"/>` },
+  sponge:  { label: 'Sponge', tags: ['cleaning','absorbs','scrubs','holes'], face: { x: 50, y: 108, r: 17 }, hair: { x: 50, y: 62, w: 30 },
+    draw: c => `<rect x="14" y="62" width="72" height="76" rx="10" fill="#f2d14b"/><rect x="14" y="62" width="72" height="18" rx="8" fill="${c}"/><circle cx="26" cy="128" r="2.5" fill="#0002"/><circle cx="74" cy="92" r="2.5" fill="#0002"/><circle cx="76" cy="126" r="2" fill="#0002"/>` },
+  toaster: { label: 'Toaster', tags: ['appliance','hot','electric'], face: { x: 50, y: 102, r: 18 }, hair: { x: 50, y: 60, w: 30 },
+    draw: c => `<rect x="12" y="62" width="76" height="76" rx="16" fill="${c}"/><rect x="26" y="57" width="18" height="7" rx="3" fill="#333"/><rect x="56" y="57" width="18" height="7" rx="3" fill="#333"/><rect x="86" y="88" width="8" height="14" rx="2" fill="#333"/>` }
 };
 const CLIENT_TOOLS = Object.keys(TOOLS);
+// Fixed cast, tagged the same way so their lines come from the same system.
+const CAST_TAGS = {
+  judge:  ['appliance','hot','presses','flat','steam'],
+  pros:   ['garden','digs','dirt','handle'],
+  bucket: ['liquid','holds','handle','deep']
+};
 
 function drawHair(style, h, hc) {
   const { x, y, w } = h;
@@ -316,7 +400,7 @@ function genCase(n) {
   const hour = rand(HOURS);
   const person = Math.random() < 0.5;
   const target = person ? `${rand(NAMES)} the ${rand(TARGETS)}` : null;
-  const charge = person ? `${client.label} ${rand(PVERBS)} ${target}.` : `${client.label} ${rand(LVERBS)} in the ${S.name}.`;
+  const charge = person ? `${client.label} ${chargeVerb(client.tool, true)} ${target}.` : `${client.label} ${chargeVerb(client.tool, false)} in the ${S.name}.`;
   const mode = Math.random() < 0.5 ? 'lies' : 'story';
   const cn = client.name;
 
@@ -369,42 +453,240 @@ function stats() {
 }
 
 /* ---------- dialogue ---------- */
-// Line pools. Mostly plain; some carry a tool idiom the characters would use without noticing.
+// Each moment has plain lines and tag-keyed lines. A speaker can only get a tag line
+// for a tag they actually have. Plain lines stay the majority (see TAG_LINE_CHANCE).
+const TAG_LINE_CHANCE = 0.35;
 const LINES = {
-  judgeOpen: ['Court is now in session. Please be seated.', 'Order. This court is now in session.', 'We have a full docket today. Let us iron this out quickly.'],
-  prosCharge: ['The prosecution intends to prove it.', 'The prosecution will get to the bottom of it.', 'The prosecution intends to prove it. Every last detail.'],
-  clientOpen: ['I did not do it.', 'I would like to go home.', 'I am innocent. I was hung on a hook most of that day.'],
-  bucketReady: ['The defense is ready, Your Honor.', 'The defense is ready. My client is innocent, Your Honor.', 'Ready, Your Honor. I think my client\'s account will hold up.'],
-  witnessOpen: ['I saw what happened.', 'I will tell the court what I saw.', 'I was there. I saw everything.', 'I had a clear view from the dish rack.', 'I saw it from the drawer. It was open a crack.'],
-  bucketLies: ['Some of this testimony is false. The evidence will show which parts.', 'Some of this testimony will not hold up. We need to find where.'],
-  bucketStory: ['Your story needs to match every piece of evidence. Answer carefully.', 'Keep it simple. Every answer has to match the evidence.'],
-  sustained: ['Sustained.', 'Sustained. That statement is struck from the record.', 'Sustained. The witness will be more careful.'],
-  witnessCaught: ['I may have been thinking of someone else.', 'It was dark in the drawer.', 'I made that up.'],
-  prosRests: ['The prosecution has no further questions.', 'The prosecution rests.'],
-  judgeLiesWin: ['The testimony is not reliable. I have reached a verdict.', 'That testimony does not hold up. I have reached a verdict.'],
-  prosAgrees: ['That evidence agrees with the witness.', 'That evidence supports the witness. Thank you.'],
-  bucketRetreat: ['Understood, Your Honor.', 'My apologies, Your Honor.', 'Withdrawn.'],
-  judgeStoryWin: ['The story is consistent with the evidence. I have reached a verdict.', 'Everything checks out. I have reached a verdict.'],
-  bucketStoryFix: ['Understood, Your Honor.', 'My client misspoke, Your Honor.', 'Let me rephrase that for my client.'],
-  judgeDone: ['That is enough. I have reached a verdict.', 'I have heard enough. I am pressing on to a verdict.']
+  clientOpen: {
+    plain: ['I did not do it.', 'I would like to go home.', 'I am innocent.', 'I was not even there.'],
+    tags: {
+      handle: ['I am innocent. I was hung on a hook most of that day.'],
+      utensil: ['I was in the drawer. I keep a low profile.'],
+      dish: ['I was in the cupboard. Upside down. Ask anyone.'],
+      cookware: ['I was in the cabinet under the counter all day.'],
+      garden: ['I was in the shed. It was locked.'],
+      workshop: ['I was in the toolbox. The lid was shut.'],
+      cleaning: ['I was in the closet under the stairs.'],
+      liquid: ['I am not trying to make a splash. I just want to go home.'],
+      stirs: ['I am not one to stir things up.'],
+      scoops: ['Everyone thinks they have the inside scoop on me.'],
+      serves: ['I have served this household for years. Faithfully.'],
+      deep: ['This goes deeper than it looks, Your Honor.'],
+      prongs: ['I feel like I am being picked on.'],
+      pokes: ['I do not poke my nose into other people\'s business.'],
+      beats: ['I will not beat around the bush. I did not do it.'],
+      wires: ['I have been a little wired lately. That does not make me guilty.'],
+      flips: ['I would never flip on anyone.'],
+      flat: ['I have two sides, and you can see both of them.'],
+      spreads: ['I am not one to spread rumors.'],
+      dull: ['My life is dull. I like it that way.'],
+      breakable: ['Please be gentle. I chip easily.'],
+      hot: ['People think I am hot-headed. I am not.'],
+      nonstick: ['I keep to myself. Nothing sticks to me.'],
+      boils: ['I have been in hot water before. Not like this.', 'I was on the stove. Medium heat. All evening.'],
+      holes: ['I have nothing to hide. You can see right through me.'],
+      drains: ['This whole thing has been very draining.'],
+      digs: ['I have been digging through my memory. I was not there.'],
+      dirt: ['Someone is trying to dig up dirt on me.'],
+      rock: ['I have been solid as a rock my whole life.'],
+      pointed: ['I will get straight to the point. I did not do it.'],
+      breaks: ['I have never broken a rule. Only rocks.'],
+      gathers: ['I keep to myself. I mostly gather leaves.'],
+      leaves: ['I would like to leave, please.'],
+      small: ['I am a small tool. I do small things.'],
+      waters: ['I was outside watering the plants. All afternoon.'],
+      hits: ['I have never hurt anyone. I only hit nails.'],
+      nails: ['They are trying to nail me for this.'],
+      turns: ['I would never turn on anyone.'],
+      grips: ['Someone is trying to put me in a tight spot.'],
+      screws: ['I feel like I am being screwed over, Your Honor.'],
+      cuts: ['I do not cut corners.'],
+      teeth: ['I have been gritting my teeth through this whole thing.'],
+      sharp: ['I am sharper than people think. I would not be this careless.'],
+      unclogs: ['I keep to myself. I only help when things get backed up.'],
+      suction: ['I do not get sucked into drama.'],
+      sweeps: ['I keep things clean. I do not make messes.'],
+      bristles: ['I bristle at the accusation, Your Honor.'],
+      absorbs: ['I have absorbed a lot this week.'],
+      scrubs: ['My record is spotless.'],
+      electric: ['I was plugged in at home all night.']
+    }
+  },
+  witnessOpen: {
+    plain: ['I saw what happened.', 'I will tell the court what I saw.', 'I was there. I saw everything.'],
+    tags: {
+      dish: ['I had a clear view from the dish rack.'],
+      utensil: ['I saw it from the drawer. It was open a crack.'],
+      cookware: ['I saw it from the stovetop.'],
+      garden: ['I saw it through the shed window.'],
+      workshop: ['I saw it from the pegboard.'],
+      cleaning: ['I saw it from the closet. The door was open.'],
+      appliance: ['I saw it from the counter.'],
+      sharp: ['I have a keen eye.'],
+      scoops: ['I have the full scoop.']
+    }
+  },
+  witnessCaught: {
+    plain: ['I may have been thinking of someone else.', 'I made that up.', 'I may have been mistaken.'],
+    tags: {
+      utensil: ['It was dark in the drawer.'],
+      dish: ['It was dark in the cupboard.'],
+      garden: ['It was dark in the shed.'],
+      flips: ['I may have flipped a few details.'],
+      hot: ['I was a little steamed that day. I said things.'],
+      electric: ['I may have been a bit burnt out that day.'],
+      hits: ['I may have been a little hammered that night.'],
+      turns: ['I may have twisted that a little.'],
+      nonstick: ['Fine. It did not pan out the way I said.'],
+      unclogs: ['I may have gone in a little too deep.'],
+      milk: ['It is all a bit cloudy. I had milk in me.'],
+      holes: ['Some details may have slipped through.'],
+      absorbs: ['I may have soaked up some gossip and repeated it.'],
+      sweeps: ['I may have swept a few things under the rug.'],
+      spreads: ['I may have spread that around without checking.'],
+      stirs: ['I may have been trying to stir things up.'],
+      dirt: ['I was told there was dirt. There was not.'],
+      breakable: ['I cracked under pressure. It happens.'],
+      whistles: ['I blew the whistle too early.'],
+      bristles: ['I bristled. I said the first thing I thought of.'],
+      cuts: ['I may have cut a few corners.'],
+      screws: ['I may have gotten a few things screwed up.'],
+      wires: ['I got my wires crossed.'],
+      pointed: ['I may have missed the point.'],
+      suction: ['I got sucked into it.'],
+      serves: ['I may have served up a bit of fiction.'],
+      scoops: ['I may have gotten the scoop wrong.'],
+      gathers: ['I gathered that from somewhere else.']
+    }
+  },
+  judgeOpen: {
+    plain: ['Court is now in session. Please be seated.', 'Order. This court is now in session.'],
+    tags: { presses: ['We have a full docket today. Let us iron this out quickly.'] }
+  },
+  sustained: {
+    plain: ['Sustained.', 'Sustained. That statement is struck from the record.', 'Sustained. The witness will be more careful.'],
+    tags: { flat: ['Sustained. That statement falls flat.'] }
+  },
+  judgeLiesWin: {
+    plain: ['The testimony is not reliable. I have reached a verdict.'],
+    tags: { presses: ['That testimony did not hold up under pressure. I have reached a verdict.'] }
+  },
+  judgeStoryWin: {
+    plain: ['The story is consistent with the evidence. I have reached a verdict.', 'Everything checks out. I have reached a verdict.'],
+    tags: { presses: ['The wrinkles are out of this story. I have reached a verdict.'] }
+  },
+  judgeDone: {
+    plain: ['That is enough. I have reached a verdict.'],
+    tags: { presses: ['I have heard enough. I am pressing on to a verdict.'], steam: ['I am running out of steam. I have reached a verdict.'] }
+  },
+  prosCharge: {
+    plain: ['The prosecution intends to prove it.', 'The prosecution intends to prove it. Every last detail.'],
+    tags: { digs: ['The prosecution will get to the bottom of it.', 'The prosecution has done its digging.'] }
+  },
+  prosRests: {
+    plain: ['The prosecution has no further questions.', 'The prosecution rests.'],
+    tags: { digs: ['The prosecution will not dig any further.'] }
+  },
+  prosAgrees: {
+    plain: ['That evidence agrees with the witness.', 'That evidence supports the witness. Thank you.'],
+    tags: {}
+  },
+  bucketReady: {
+    plain: ['The defense is ready, Your Honor.', 'The defense is ready. My client is innocent, Your Honor.'],
+    tags: { holds: ['Ready, Your Honor. I think my client\'s account will hold up.'] }
+  },
+  bucketLies: {
+    plain: ['Some of this testimony is false. The evidence will show which parts.'],
+    tags: { holds: ['Some of this testimony will not hold up. We need to find where.'] }
+  },
+  bucketStory: {
+    plain: ['Your story needs to match every piece of evidence. Answer carefully.', 'Keep it simple. Every answer has to match the evidence.'],
+    tags: {}
+  },
+  bucketRetreat: {
+    plain: ['Understood, Your Honor.', 'My apologies, Your Honor.', 'Withdrawn.'],
+    tags: { handle: ['Understood. I will handle it differently.'] }
+  },
+  bucketStoryFix: {
+    plain: ['Understood, Your Honor.', 'My client misspoke, Your Honor.', 'Let me rephrase that for my client.'],
+    tags: { liquid: ['Let me pour that out and start again.'] }
+  }
 };
-const TOOL_LINES = {
-  hammer:   { open: ['I have never hurt anyone. I only hit nails.', 'I work construction. I was on the job all day.'], caught: ['I may have been a little hammered that night.'] },
-  spatula:  { open: ['I would never flip on anyone.', 'I was in the drawer. I keep a low profile.'], caught: ['I may have flipped a few details.'] },
-  kettle:   { open: ['I have been in hot water before. Not like this.', 'I am trying to stay calm.'], caught: ['I was a little steamed that day. I said things.'] },
-  toaster:  { open: ['I was plugged in at home all night.', 'People think I am hot-headed. I am not.'], caught: ['I may have been a bit burnt out that day.'] },
-  wrench:   { open: ['I was under the sink, tightening a pipe.', 'Someone is trying to put me in a tight spot.'], caught: ['I may have twisted that a little.'] },
-  pan:      { open: ['I was on the stove. Medium heat. All evening.', 'I keep to myself. Nothing sticks to me.'], caught: ['Fine. It did not pan out the way I said.'] },
-  plunger:  { open: ['I keep to myself. I only help when things get backed up.', 'I stay in the bathroom. I do not go out.'], caught: ['I may have gone in a little too deep.'] },
-  mug:      { open: ['I was in the cupboard. Upside down. Ask anyone.', 'I mostly sit on the counter. I am a homebody.'], caught: ['It is all a bit cloudy. I had milk in me.'] },
-  colander: { open: ['I would never. I do not hold on to things.', 'I have nothing to hide. You can see right through me.'], caught: ['Some details may have slipped through.'] }
-};
-// Pick from a pool, optionally mixed with tool-specific lines.
-const pick = (k, tool, part) => rand(LINES[k].concat(tool && TOOL_LINES[tool] ? TOOL_LINES[tool][part] : []));
-// Rare overt pun with a straight retort; at most one per case.
-function rarePun(chance) {
-  if (game.punUsed || Math.random() >= chance) return false;
-  game.punUsed = true; return true;
+
+function tagsOf(who) {
+  if (CAST_TAGS[who]) return CAST_TAGS[who];
+  const c = game.case;
+  return TOOLS[(who === 'client' ? c.client : c.witness).tool].tags;
+}
+// Tag lines a speaker with these tags is allowed to say for a moment.
+function tagLinesFor(moment, tags) {
+  const t = LINES[moment].tags; let out = [];
+  for (const tag of tags) if (t[tag]) out = out.concat(t[tag]);
+  return out;
+}
+function pickLine(moment, tags) {
+  const tl = tagLinesFor(moment, tags);
+  return tl.length && Math.random() < TAG_LINE_CHANCE ? rand(tl) : rand(LINES[moment].plain);
+}
+// A dialogue line from a speaker, chosen with that speaker's own tags.
+const say = (who, moment) => [who, pickLine(moment, tagsOf(who))];
+
+// Rare overt puns, each keyed to the tags of whoever it is about. At most one per case.
+const has = (who, tag) => tagsOf(who).includes(tag);
+const RARE = [
+  { site: 'intro', chance: 0.05, when: () => has('bucket', 'handle'), lines: () => [
+    ['judge', 'Ms. Bucket, I trust you have a handle on this case.'],
+    ['bucket', 'I have one handle, Your Honor. It is on top.'],
+    ['judge', 'That is not what I meant.']] },
+  { site: 'intro', chance: 0.25, when: () => has('client', 'breakable'), lines: c => [
+    ['pros', `The prosecution expects ${c.client.name} to crack under questioning.`],
+    ['bucket', 'Objection. That is a threat.'],
+    ['judge', 'Sustained.']] },
+  { site: 'intro', chance: 0.25, when: () => has('client', 'absorbs'), lines: c => [
+    ['pros', `Your Honor, ${c.client.name} has a history of soaking things up.`],
+    ['bucket', 'That is what sponges do, Mr. Spade.'],
+    ['judge', 'Continue.']] },
+  { site: 'intro', chance: 0.2, when: () => has('client', 'teeth'), lines: c => [
+    ['judge', `${c.client.name} will stop grinding their teeth in my courtroom.`],
+    ['client', 'It is involuntary, Your Honor.']] },
+  { site: 'witnessIntro', chance: 0.8, when: c => [c.client.tool, c.witness.tool].sort().join() === 'kettle,pot', lines: () => [
+    ['pros', 'Your Honor, the defense will call this witness a liar. That would be the pot calling the kettle black.'],
+    ['judge', 'They are both stainless steel, Mr. Spade.'],
+    ['pros', 'Withdrawn.']] },
+  { site: 'objFail', chance: 0.06, when: () => has('bucket', 'holds'), lines: () => [
+    ['pros', 'The defense\'s argument does not hold water, Your Honor.'],
+    ['bucket', 'I am familiar with holding water, Mr. Spade.'],
+    ['judge', 'Move on, both of you.']] },
+  { site: 'objFail', chance: 0.25, when: () => has('client', 'pointed'), lines: () => [
+    ['judge', 'Ms. Bucket, please get to the point.'],
+    ['client', 'I am right here.'],
+    ['judge', 'Not you.']] },
+  { site: 'caught', chance: 0.3, when: () => has('witness', 'sweeps'), lines: () => [
+    ['bucket', 'The witness tried to sweep that under the rug.'],
+    ['witness', 'Old habit.'],
+    ['judge', 'Strike it from the record.']] },
+  { site: 'liesWin', chance: 0.12, when: () => has('pros', 'digs'), lines: () => [
+    ['pros', 'Your Honor, if I may, the defense has simply been lucky.'],
+    ['judge', 'Mr. Spade, you are digging yourself a hole.'],
+    ['pros', 'Your Honor, I am a shovel.'],
+    ['judge', 'I am aware.']] },
+  { site: 'storyFail', chance: 0.4, when: () => has('client', 'holes'), lines: () => [
+    ['pros', 'Your Honor, this story is full of holes.'],
+    ['client', 'Please do not bring that up.'],
+    ['judge', 'Mr. Spade.']] },
+  { site: 'storyFail', chance: 0.3, when: () => has('client', 'flips'), lines: c => [
+    ['pros', `${c.client.name} has flipped their story, Your Honor.`],
+    ['client', 'It is the only thing I know how to do.'],
+    ['judge', 'Not in my courtroom.']] }
+];
+// Returns an exchange for this moment, or null. Uses up the case's one overt pun.
+function rarePun(site) {
+  if (game.punUsed) return null;
+  const c = game.case;
+  for (const r of shuffle(RARE.filter(r => r.site === site && r.when(c)))) {
+    if (Math.random() < r.chance) { game.punUsed = true; return r.lines(c); }
+  }
+  return null;
 }
 
 const SPEAKERS = { judge: ['Judge Iron', 'char-judge'], pros: ['Prosecutor Spade', 'char-pros'], bucket: ['Ms. Bucket', 'char-bucket'] };
@@ -456,22 +738,20 @@ function startCase() {
     <div id="panel"></div>`;
   renderPanel();
   const intro = [
-    ['judge', pick('judgeOpen')],
-    ['pros', `The defendant, ${c.client.label}, is accused of the following: ${c.charge.replace(/\.$/, '')}. ${pick('prosCharge')}`],
-    ['client', pick('clientOpen', c.client.tool, 'open')],
-    ['bucket', pick('bucketReady')]
+    say('judge', 'judgeOpen'),
+    ['pros', `The defendant, ${c.client.label}, is accused of the following: ${c.charge.replace(/\.$/, '')}. ${pickLine('prosCharge', CAST_TAGS.pros)}`],
+    say('client', 'clientOpen'),
+    say('bucket', 'bucketReady')
   ];
-  if (rarePun(0.06)) intro.push(
-    ['judge', 'Ms. Bucket, I trust you have a handle on this case.'],
-    ['bucket', 'I have one handle, Your Honor. It is on top.'],
-    ['judge', 'That is not what I meant.']);
+  intro.push(...(rarePun('intro') || []));
   if (c.mode === 'lies') {
     intro.push(['pros', `The prosecution calls ${c.witness.label} to the stand.`]);
-    intro.push(['witness', pick('witnessOpen')]);
-    intro.push(['bucket', pick('bucketLies')]);
+    intro.push(say('witness', 'witnessOpen'));
+    intro.push(...(rarePun('witnessIntro') || []));
+    intro.push(say('bucket', 'bucketLies'));
   } else {
     intro.push(['judge', `The defense may now present ${c.client.name}'s side of the story.`]);
-    intro.push(['bucket', pick('bucketStory')]);
+    intro.push(say('bucket', 'bucketStory'));
   }
   talk(intro);
 }
@@ -527,24 +807,21 @@ function objectLie() {
     const done = game.struck.size >= c.nLies;
     const lines = [
       ['bucket', `Objection! ${why[s.dim]}`],
-      ['judge', pick('sustained')],
-      ['witness', pick('witnessCaught', c.witness.tool, 'caught')]
+      say('judge', 'sustained'),
+      say('witness', 'witnessCaught'),
+      ...(rarePun('caught') || [])
     ];
     renderPanel();
     if (done) {
-      if (rarePun(0.14)) lines.push(
-        ['pros', 'Your Honor, if I may, the defense has simply been lucky.'],
-        ['judge', 'Mr. Spade, you are digging yourself a hole.'],
-        ['pros', 'Your Honor, I am a shovel.'],
-        ['judge', 'I am aware.']);
-      lines.push(['pros', pick('prosRests')]);
-      lines.push(['judge', pick('judgeLiesWin')]);
+      lines.push(...(rarePun('liesWin') || []));
+      lines.push(say('pros', 'prosRests'));
+      lines.push(say('judge', 'judgeLiesWin'));
       talk(lines, () => verdict(true));
     } else talk(lines);
   } else {
     let lines = [['bucket', `Objection! Please look at the ${e.title.toLowerCase()}.`]];
     if (!s.lie && e.id === s.dim) {
-      lines.push(['pros', pick('prosAgrees')]);
+      lines.push(say('pros', 'prosAgrees'));
       lines.push(['judge', 'Overruled.']);
     } else if (e.id === 'decoy') {
       lines.push(['judge', `Overruled. That is a ${e.title.toLowerCase()}. It is not relevant.`]);
@@ -553,11 +830,7 @@ function objectLie() {
     } else {
       lines.push(['judge', 'Overruled. That evidence has nothing to do with that statement.']);
     }
-    if (rarePun(0.07)) lines.push(
-      ['pros', 'The defense\'s argument does not hold water, Your Honor.'],
-      ['bucket', 'I am familiar with holding water, Mr. Spade.'],
-      ['judge', 'Move on, both of you.']);
-    else lines.push(['bucket', pick('bucketRetreat')]);
+    lines.push(...(rarePun('objFail') || [say('bucket', 'bucketRetreat')]));
     penalize(lines);
   }
 }
@@ -571,7 +844,7 @@ function tellStory() {
     talk([
       ['client', story],
       ['pros', 'The prosecution has no objections.'],
-      ['judge', pick('judgeStoryWin')]
+      say('judge', 'judgeStoryWin')
     ], () => verdict(true));
     return;
   }
@@ -585,9 +858,7 @@ function tellStory() {
     ['client', story],
     ['pros', `Objection! ${why}`],
     ['judge', 'Sustained. The defense may try again.'],
-    ...(c.client.tool === 'colander' && rarePun(0.4)
-      ? [['pros', 'Your Honor, this story is full of holes.'], ['client', 'Please do not bring that up.'], ['judge', 'Mr. Spade.']]
-      : [['bucket', pick('bucketStoryFix')]])
+    ...(rarePun('storyFail') || [say('bucket', 'bucketStoryFix')])
   ]);
 }
 
@@ -595,7 +866,7 @@ function penalize(lines) {
   game.patience--;
   renderPanel();
   if (game.patience <= 0) {
-    lines.push(['judge', pick('judgeDone')]);
+    lines.push(say('judge', 'judgeDone'));
     talk(lines, () => verdict(false));
   } else talk(lines);
 }
