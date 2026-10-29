@@ -174,7 +174,8 @@ const ROOMS = [
   { name: 'attic', landmark: 'a box labeled "XMAS?"' },
   { name: 'bathroom', landmark: 'the bathtub' },
   { name: 'living room', landmark: 'the couch' },
-  { name: 'basement', landmark: 'the water heater' }
+  { name: 'basement', landmark: 'the water heater' },
+  { name: 'front yard', landmark: 'the mailbox' }
 ];
 const RESIDUES = [
   { sub: 'flour', act: 'baking cookies' },
@@ -186,6 +187,17 @@ const RESIDUES = [
   { sub: 'soap suds', act: 'washing the dishes' }
 ];
 const HOURS = ['7:15 PM','9:40 AM','noon','midnight','3:30 PM','6:05 AM','8:45 PM','11:20 AM'];
+// A clock time shifted by some minutes, e.g. shiftTime('7:15 PM', -30) -> '6:45 PM'.
+function shiftTime(h, mins) {
+  let t;
+  if (h === 'noon') t = 12 * 60; else if (h === 'midnight') t = 0;
+  else { const [, hh, mm, ap] = h.match(/(\d+):(\d+) (AM|PM)/); t = (+hh % 12) * 60 + +mm + (ap === 'PM' ? 720 : 0); }
+  t = ((t + mins) % 1440 + 1440) % 1440;
+  if (t === 720) return 'noon'; if (t === 0) return 'midnight';
+  const H = Math.floor(t / 60), M = t % 60;
+  return `${H % 12 || 12}:${String(M).padStart(2, '0')} ${H < 12 ? 'AM' : 'PM'}`;
+}
+const GAP_MINS = [5, 10, 15, 20, 30, 45, 60];
 
 /* ---------- character drawing ---------- */
 const HAIRC = ['#3b2a1e','#7a4a22','#d9a441','#c94f2b','#222222','#9a9a9a','#e8e8e8','#5b3fa0'];
@@ -806,7 +818,11 @@ const DIMS = {
     const ev = rand([
       { title: 'Group Photo', text: `${cn} and ${C} playing cards. Timestamp: ${hour}.`, detail: `${cn} playing cards with ${C} at ${hour}` },
       { title: 'Text Message', text: `${C} to ${cn}, sent the next day: "Thanks for keeping me company yesterday at ${hour}. Let's do it again soon."`, detail: `${C} thanking ${cn} for keeping them company at ${hour}` },
-      { title: 'Game Night Score Sheet', text: `Dated that day. Players: ${cn} and ${C}. ${C} won.`, detail: `${cn} playing games with ${C} that day` }
+      { title: 'Game Night Score Sheet', text: `Dated that day. Players: ${cn} and ${C}. ${C} won.`, detail: `${cn} playing games with ${C} that day` },
+      rand([
+        (t => ({ title: "Mail Carrier's Statement", text: `"I saw ${cn} heading to the ${c.P.name} with ${C} around ${t}."`, detail: `${cn} heading to the ${c.P.name} with ${C} around ${t}` }))(shiftTime(hour, -rand(GAP_MINS))),
+        (t => ({ title: "Mail Carrier's Statement", text: `"I saw ${cn} leaving the ${c.P.name} with ${C} around ${t}."`, detail: `${cn} leaving the ${c.P.name} with ${C} around ${t}` }))(shiftTime(hour, rand(GAP_MINS)))
+      ])
     ]);
     return { ev, story: true,
       stmt: { lie: `${cn} was all alone at the time. Nobody can vouch for them.`, truth: `I think ${cn} had company at the time. ${C}, maybe.` },
@@ -821,10 +837,15 @@ const DIMS = {
   carried: c => {
     const cn = c.client.name, { hour } = c;
     const [I, I2] = shuffle(ITEMS_OK), Ibad = rand(ITEMS_BAD);
-    const ev = rand([
-      { title: 'Doorbell Camera', text: `Footage of ${cn} passing by at ${hour}, carrying ${I}.`, detail: `${cn} carrying ${I} at ${hour}` },
-      { title: 'Store Receipt', text: `${cn} bought ${I} at the corner store, just before ${hour}.`, detail: `${cn} buying ${I} just before ${hour}` }
-    ]);
+    // Every option places the client at their true location (c.P), so it never conflicts with the place evidence.
+    const P = c.P, E = someone(c.target, c.neighbor, c.client.label, c.witness.label);
+    const before = shiftTime(hour, -rand(GAP_MINS)), after = shiftTime(hour, rand(GAP_MINS));
+    const opts = [
+      { title: 'Eyewitness Statement', text: `From ${E}: "I saw ${cn} heading to the ${P.name} with ${I} around ${before}."`, detail: `${cn} heading to the ${P.name} with ${I} around ${before}` },
+      { title: 'Eyewitness Statement', text: `From ${E}: "I saw ${cn} leaving the ${P.name} with ${I} around ${after}."`, detail: `${cn} leaving the ${P.name} with ${I} around ${after}` }
+    ];
+    if (P.name === 'front yard') opts.push({ title: 'Doorbell Camera', text: `Footage of ${cn} in the front yard at ${hour}, carrying ${I}.`, detail: `${cn} in the front yard at ${hour}, carrying ${I}` });
+    const ev = rand(opts);
     return { ev, story: true,
       stmt: { lie: `${cn} was carrying ${Ibad}. I saw it.`, truth: `${cn} had ${I} with them, I think.` },
       why: `The ${ev.title.toLowerCase()} shows ${ev.detail}. Not ${Ibad}.`,
