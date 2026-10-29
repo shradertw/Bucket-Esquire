@@ -369,6 +369,44 @@ function stats() {
 }
 
 /* ---------- dialogue ---------- */
+// Line pools. Mostly plain; some carry a tool idiom the characters would use without noticing.
+const LINES = {
+  judgeOpen: ['Court is now in session. Please be seated.', 'Order. This court is now in session.', 'We have a full docket today. Let us iron this out quickly.'],
+  prosCharge: ['The prosecution intends to prove it.', 'The prosecution will get to the bottom of it.', 'The prosecution intends to prove it. Every last detail.'],
+  clientOpen: ['I did not do it.', 'I would like to go home.', 'I am innocent. I was hung on a hook most of that day.'],
+  bucketReady: ['The defense is ready, Your Honor.', 'The defense is ready. My client is innocent, Your Honor.', 'Ready, Your Honor. I think my client\'s account will hold up.'],
+  witnessOpen: ['I saw what happened.', 'I will tell the court what I saw.', 'I was there. I saw everything.', 'I had a clear view from the dish rack.', 'I saw it from the drawer. It was open a crack.'],
+  bucketLies: ['Some of this testimony is false. The evidence will show which parts.', 'Some of this testimony will not hold up. We need to find where.'],
+  bucketStory: ['Your story needs to match every piece of evidence. Answer carefully.', 'Keep it simple. Every answer has to match the evidence.'],
+  sustained: ['Sustained.', 'Sustained. That statement is struck from the record.', 'Sustained. The witness will be more careful.'],
+  witnessCaught: ['I may have been thinking of someone else.', 'It was dark in the drawer.', 'I made that up.'],
+  prosRests: ['The prosecution has no further questions.', 'The prosecution rests.'],
+  judgeLiesWin: ['The testimony is not reliable. I have reached a verdict.', 'That testimony does not hold up. I have reached a verdict.'],
+  prosAgrees: ['That evidence agrees with the witness.', 'That evidence supports the witness. Thank you.'],
+  bucketRetreat: ['Understood, Your Honor.', 'My apologies, Your Honor.', 'Withdrawn.'],
+  judgeStoryWin: ['The story is consistent with the evidence. I have reached a verdict.', 'Everything checks out. I have reached a verdict.'],
+  bucketStoryFix: ['Understood, Your Honor.', 'My client misspoke, Your Honor.', 'Let me rephrase that for my client.'],
+  judgeDone: ['That is enough. I have reached a verdict.', 'I have heard enough. I am pressing on to a verdict.']
+};
+const TOOL_LINES = {
+  hammer:   { open: ['I have never hurt anyone. I only hit nails.', 'I work construction. I was on the job all day.'], caught: ['I may have been a little hammered that night.'] },
+  spatula:  { open: ['I would never flip on anyone.', 'I was in the drawer. I keep a low profile.'], caught: ['I may have flipped a few details.'] },
+  kettle:   { open: ['I have been in hot water before. Not like this.', 'I am trying to stay calm.'], caught: ['I was a little steamed that day. I said things.'] },
+  toaster:  { open: ['I was plugged in at home all night.', 'People think I am hot-headed. I am not.'], caught: ['I may have been a bit burnt out that day.'] },
+  wrench:   { open: ['I was under the sink, tightening a pipe.', 'Someone is trying to put me in a tight spot.'], caught: ['I may have twisted that a little.'] },
+  pan:      { open: ['I was on the stove. Medium heat. All evening.', 'I keep to myself. Nothing sticks to me.'], caught: ['Fine. It did not pan out the way I said.'] },
+  plunger:  { open: ['I keep to myself. I only help when things get backed up.', 'I stay in the bathroom. I do not go out.'], caught: ['I may have gone in a little too deep.'] },
+  mug:      { open: ['I was in the cupboard. Upside down. Ask anyone.', 'I mostly sit on the counter. I am a homebody.'], caught: ['It is all a bit cloudy. I had milk in me.'] },
+  colander: { open: ['I would never. I do not hold on to things.', 'I have nothing to hide. You can see right through me.'], caught: ['Some details may have slipped through.'] }
+};
+// Pick from a pool, optionally mixed with tool-specific lines.
+const pick = (k, tool, part) => rand(LINES[k].concat(tool && TOOL_LINES[tool] ? TOOL_LINES[tool][part] : []));
+// Rare overt pun with a straight retort; at most one per case.
+function rarePun(chance) {
+  if (game.punUsed || Math.random() >= chance) return false;
+  game.punUsed = true; return true;
+}
+
 const SPEAKERS = { judge: ['Judge Iron', 'char-judge'], pros: ['Prosecutor Spade', 'char-pros'], bucket: ['Ms. Bucket', 'char-bucket'] };
 function who(k) {
   const c = game.case;
@@ -409,7 +447,7 @@ function patienceHtml() {
 }
 
 function startCase() {
-  game.caseNo++; game.patience = 3; game.sel = null; game.selEv = null; game.struck = new Set(); game.answers = {}; game.wrongQ = null;
+  game.caseNo++; game.patience = 3; game.sel = null; game.selEv = null; game.struck = new Set(); game.answers = {}; game.wrongQ = null; game.punUsed = false;
   const c = game.case = genCase(game.caseNo);
   renderScene(); stats();
   main.innerHTML = `
@@ -418,18 +456,22 @@ function startCase() {
     <div id="panel"></div>`;
   renderPanel();
   const intro = [
-    ['judge', rand(['Court is now in session. Please be seated.', 'Order. This court is now in session.'])],
-    ['pros', `The defendant, ${c.client.label}, is accused of the following: ${c.charge.replace(/\.$/, '')}. The prosecution intends to prove it.`],
-    ['client', rand(['I did not do it.', 'I would like to go home.', 'I am innocent. I was hung on a hook most of that day.'])],
-    ['bucket', rand(['The defense is ready, Your Honor.', 'The defense is ready. My client is innocent, Your Honor.'])]
+    ['judge', pick('judgeOpen')],
+    ['pros', `The defendant, ${c.client.label}, is accused of the following: ${c.charge.replace(/\.$/, '')}. ${pick('prosCharge')}`],
+    ['client', pick('clientOpen', c.client.tool, 'open')],
+    ['bucket', pick('bucketReady')]
   ];
+  if (rarePun(0.06)) intro.push(
+    ['judge', 'Ms. Bucket, I trust you have a handle on this case.'],
+    ['bucket', 'I have one handle, Your Honor. It is on top.'],
+    ['judge', 'That is not what I meant.']);
   if (c.mode === 'lies') {
     intro.push(['pros', `The prosecution calls ${c.witness.label} to the stand.`]);
-    intro.push(['witness', rand(['I saw what happened.', 'I will tell the court what I saw.', 'I was there. I saw everything.'])]);
-    intro.push(['bucket', 'Some of this testimony is false. The evidence will show which parts.']);
+    intro.push(['witness', pick('witnessOpen')]);
+    intro.push(['bucket', pick('bucketLies')]);
   } else {
     intro.push(['judge', `The defense may now present ${c.client.name}'s side of the story.`]);
-    intro.push(['bucket', 'Your story needs to match every piece of evidence. Answer carefully.']);
+    intro.push(['bucket', pick('bucketStory')]);
   }
   talk(intro);
 }
@@ -486,19 +528,24 @@ function objectLie() {
     const done = game.struck.size >= c.nLies;
     const lines = [
       ['bucket', `Objection! ${why[s.dim]}`],
-      ['judge', rand(['Sustained.', 'Sustained. That statement is struck from the record.', 'Sustained. The witness will be more careful.'])],
-      ['witness', rand(['I may have been thinking of someone else.', 'It was dark in the drawer.', 'I made that up.'])]
+      ['judge', pick('sustained')],
+      ['witness', pick('witnessCaught', c.witness.tool, 'caught')]
     ];
     renderPanel();
     if (done) {
-      lines.push(['pros', 'The prosecution has no further questions.']);
-      lines.push(['judge', 'The testimony is not reliable. I have reached a verdict.']);
+      if (rarePun(0.14)) lines.push(
+        ['pros', 'Your Honor, if I may, the defense has simply been lucky.'],
+        ['judge', 'Mr. Spade, you are digging yourself a hole.'],
+        ['pros', 'Your Honor, I am a shovel.'],
+        ['judge', 'I am aware.']);
+      lines.push(['pros', pick('prosRests')]);
+      lines.push(['judge', pick('judgeLiesWin')]);
       talk(lines, () => verdict(true));
     } else talk(lines);
   } else {
     let lines = [['bucket', `Objection! Please look at the ${e.title.toLowerCase()}.`]];
     if (!s.lie && e.id === s.dim) {
-      lines.push(['pros', 'That evidence agrees with the witness.']);
+      lines.push(['pros', pick('prosAgrees')]);
       lines.push(['judge', 'Overruled.']);
     } else if (e.id === 'decoy') {
       lines.push(['judge', `Overruled. That is a ${e.title.toLowerCase()}. It is not relevant.`]);
@@ -507,7 +554,11 @@ function objectLie() {
     } else {
       lines.push(['judge', 'Overruled. That evidence has nothing to do with that statement.']);
     }
-    lines.push(['bucket', rand(['Understood, Your Honor.', 'My apologies, Your Honor.', 'Withdrawn.'])]);
+    if (rarePun(0.07)) lines.push(
+      ['pros', 'The defense\'s argument does not hold water, Your Honor.'],
+      ['bucket', 'I am familiar with holding water, Mr. Spade.'],
+      ['judge', 'Move on, both of you.']);
+    else lines.push(['bucket', pick('bucketRetreat')]);
     penalize(lines);
   }
 }
@@ -521,7 +572,7 @@ function tellStory() {
     talk([
       ['client', story],
       ['pros', 'The prosecution has no objections.'],
-      ['judge', 'The story is consistent with the evidence. I have reached a verdict.']
+      ['judge', pick('judgeStoryWin')]
     ], () => verdict(true));
     return;
   }
@@ -535,7 +586,9 @@ function tellStory() {
     ['client', story],
     ['pros', `Objection! ${why}`],
     ['judge', 'Sustained. The defense may try again.'],
-    ['bucket', rand(['Understood, Your Honor.', 'My client misspoke, Your Honor.'])]
+    ...(c.client.tool === 'colander' && rarePun(0.4)
+      ? [['pros', 'Your Honor, this story is full of holes.'], ['client', 'Please do not bring that up.'], ['judge', 'Mr. Spade.']]
+      : [['bucket', pick('bucketStoryFix')]])
   ]);
 }
 
@@ -543,7 +596,7 @@ function penalize(lines) {
   game.patience--;
   renderPanel();
   if (game.patience <= 0) {
-    lines.push(['judge', 'That is enough. I have reached a verdict.']);
+    lines.push(['judge', pick('judgeDone')]);
     talk(lines, () => verdict(false));
   } else talk(lines);
 }
