@@ -141,7 +141,11 @@ const TAG_CHARGES = {
   sweeps:   { l: ['swept dirt under the rug'] },
   absorbs:  { p: ['soaked'] },
   scrubs:   { l: ['scrubbed the paint off the wall'] },
-  electric: { l: ['blew a fuse'] }
+  electric: { l: ['blew a fuse'] },
+  grates:   { p: ['grated on the nerves of'] },
+  presses:  { l: ['flattened the flower beds'] },
+  weeds:    { l: ['pulled up the tulips'] },
+  grips:    { p: ['pinched'] }
 };
 // Half the time (when one exists), the charge comes from the client's own tags.
 function chargeVerb(tool, person) {
@@ -181,14 +185,17 @@ const DECOYS = [
 /* ---------- character drawing ---------- */
 const HAIRC = ['#3b2a1e','#7a4a22','#d9a441','#c94f2b','#222222','#9a9a9a','#e8e8e8','#5b3fa0'];
 const BODYC = ['#d9534f','#4a90c2','#5cb85c','#e8a33d','#8e6bbf','#e07aa8','#3fb3a8','#c8b560'];
+const MET = '#c3cad1', STEEL = '#8c96a0', WOOD = '#a5713f', CREAM = '#f6f2ea';
 
-const MET = '#c3cad1', STEEL = '#8c96a0', WOOD = '#a5713f';
 // Each tool: label, tags (what the thing is and does), face/hair anchor points, and a simple drawing.
+// Optional `variants` are alternate body shapes (same tags), picked at random per character.
 // Dialogue lines and charges are only ever chosen from tags a tool actually has.
 const TOOLS = {
   /* kitchen utensils */
   spoon:   { label: 'Spoon', tags: ['utensil','metal','liquid','stirs','scoops','milk'], face: { x: 50, y: 38, r: 14 }, hair: { x: 50, y: 10, w: 16 },
-    draw: c => `<rect x="46" y="62" width="8" height="78" rx="4" fill="${c}"/><ellipse cx="50" cy="38" rx="22" ry="30" fill="${MET}"/>` },
+    draw: c => `<rect x="46" y="62" width="8" height="78" rx="4" fill="${c}"/><ellipse cx="50" cy="38" rx="22" ry="30" fill="${MET}"/>`,
+    variants: [{ face: { x: 50, y: 40, r: 16 }, hair: { x: 50, y: 14, w: 18 },
+      draw: c => `<rect x="46" y="62" width="8" height="78" rx="4" fill="${c}"/><circle cx="50" cy="40" r="28" fill="${MET}"/>` }] },
   fork:    { label: 'Fork', tags: ['utensil','metal','prongs','pokes'], face: { x: 50, y: 48, r: 12 }, hair: { x: 50, y: 6, w: 20 },
     draw: c => `<rect x="46" y="64" width="8" height="76" rx="4" fill="${c}"/><rect x="26" y="32" width="48" height="34" rx="9" fill="${MET}"/>${[26,39,53,66].map(x => `<rect x="${x}" y="6" width="8" height="34" rx="4" fill="${MET}"/>`).join('')}` },
   ladle:   { label: 'Ladle', tags: ['utensil','liquid','scoops','serves','deep','handle'], face: { x: 50, y: 112, r: 16 }, hair: { x: 50, y: 90, w: 26 },
@@ -199,49 +206,93 @@ const TOOLS = {
     draw: c => `<rect x="46" y="70" width="8" height="70" rx="3" fill="#333"/><rect x="24" y="10" width="52" height="64" rx="10" fill="${c}"/><rect x="34" y="52" width="5" height="16" rx="2" fill="#0003"/><rect x="47.5" y="52" width="5" height="16" rx="2" fill="#0003"/><rect x="61" y="52" width="5" height="16" rx="2" fill="#0003"/>` },
   knife:   { label: 'Butter Knife', tags: ['utensil','metal','spreads','dull','flat'], face: { x: 50, y: 48, r: 10 }, hair: { x: 50, y: 10, w: 10 },
     draw: c => `<path d="M38 84 L38 24 Q40 6 62 8 L62 84 Z" fill="${MET}"/><rect x="42" y="80" width="16" height="60" rx="6" fill="${c}"/>` },
+  rollingpin: { label: 'Rolling Pin', tags: ['utensil','presses','handle'], face: { x: 50, y: 70, r: 15 }, hair: { x: 50, y: 26, w: 18 },
+    draw: c => `<rect x="44" y="4" width="12" height="24" rx="5" fill="${c}"/><rect x="44" y="112" width="12" height="26" rx="5" fill="${c}"/><rect x="28" y="24" width="44" height="92" rx="12" fill="#d9a86c"/>` },
+  tongs:   { label: 'Tongs', tags: ['utensil','grips','metal'], face: { x: 50, y: 30, r: 14 }, hair: { x: 50, y: 12, w: 14 },
+    draw: c => `<path d="M42 30 L28 136 L37 138 L50 34 Z" fill="${MET}"/><path d="M58 30 L72 136 L63 138 L50 34 Z" fill="${MET}"/><circle cx="50" cy="30" r="19" fill="${c}"/>` },
+  grater:  { label: 'Cheese Grater', tags: ['utensil','grates','sharp','holes','metal'], face: { x: 50, y: 70, r: 15 }, hair: { x: 50, y: 30, w: 20 },
+    draw: c => `<path d="M36 32 Q50 6 64 32" stroke="${c}" stroke-width="6" fill="none"/><path d="M24 30 L76 30 L86 138 L14 138 Z" fill="${MET}"/>${[0,1,2].map(r => [0,1,2,3].map(k => `<rect x="${30 + k * 11 - r * 2}" y="${100 + r * 11}" width="6" height="3" rx="1" fill="#0004"/>`).join('')).join('')}` },
   /* dishes & cookware */
   plate:   { label: 'Plate', tags: ['dish','flat','breakable','serves','ceramic'], face: { x: 50, y: 92, r: 18 }, hair: { x: 50, y: 52, w: 26 },
-    draw: c => `<circle cx="50" cy="94" r="44" fill="#f6f2ea" stroke="${c}" stroke-width="7"/><circle cx="50" cy="94" r="30" fill="none" stroke="#0001" stroke-width="2"/>` },
+    draw: c => `<circle cx="50" cy="94" r="44" fill="${CREAM}" stroke="${c}" stroke-width="7"/><circle cx="50" cy="94" r="30" fill="none" stroke="#0001" stroke-width="2"/>`,
+    variants: [{ face: { x: 50, y: 94, r: 18 }, hair: { x: 50, y: 54, w: 26 },
+      draw: c => `<rect x="8" y="54" width="84" height="84" rx="16" fill="${CREAM}" stroke="${c}" stroke-width="7"/><rect x="22" y="68" width="56" height="56" rx="10" fill="none" stroke="#0001" stroke-width="2"/>` }] },
   bowl:    { label: 'Bowl', tags: ['dish','liquid','deep','breakable','ceramic','milk'], face: { x: 50, y: 108, r: 16 }, hair: { x: 50, y: 80, w: 30 },
-    draw: c => `<path d="M8 84 L92 84 Q90 138 50 138 Q10 138 8 84 Z" fill="${c}"/><ellipse cx="50" cy="84" rx="42" ry="7" fill="#0002"/>` },
+    draw: c => `<path d="M8 84 L92 84 Q90 138 50 138 Q10 138 8 84 Z" fill="${c}"/><ellipse cx="50" cy="84" rx="42" ry="7" fill="#0002"/>`,
+    variants: [{ face: { x: 50, y: 116, r: 14 }, hair: { x: 50, y: 94, w: 34 },
+      draw: c => `<path d="M2 98 L98 98 Q94 138 50 138 Q6 138 2 98 Z" fill="${c}"/><ellipse cx="50" cy="98" rx="48" ry="7" fill="#0002"/>` }] },
   mug:     { label: 'Mug', tags: ['dish','liquid','hot','handle','ceramic','breakable','milk'], face: { x: 48, y: 100, r: 17 }, hair: { x: 48, y: 62, w: 24 },
-    draw: c => `<path d="M74 80 Q96 80 96 100 Q96 120 74 120" stroke="${c}" stroke-width="8" fill="none"/><rect x="20" y="62" width="56" height="76" rx="8" fill="${c}"/><rect x="20" y="62" width="56" height="7" rx="3" fill="#fff5"/>` },
+    draw: c => `<path d="M74 80 Q96 80 96 100 Q96 120 74 120" stroke="${c}" stroke-width="8" fill="none"/><rect x="20" y="62" width="56" height="76" rx="8" fill="${c}"/><rect x="20" y="62" width="56" height="7" rx="3" fill="#fff5"/>`,
+    variants: [{ face: { x: 48, y: 92, r: 15 }, hair: { x: 48, y: 44, w: 20 },
+      draw: c => `<path d="M70 62 Q92 62 92 84 Q92 106 70 106" stroke="${c}" stroke-width="8" fill="none"/><rect x="24" y="44" width="48" height="94" rx="8" fill="${c}"/><rect x="24" y="44" width="48" height="7" rx="3" fill="#fff5"/>` }] },
+  cup:     { label: 'Teacup', tags: ['dish','liquid','hot','handle','ceramic','breakable','milk'], face: { x: 50, y: 104, r: 15 }, hair: { x: 50, y: 82, w: 24 },
+    draw: c => `<ellipse cx="50" cy="134" rx="42" ry="6" fill="${CREAM}" stroke="${c}" stroke-width="2"/><path d="M78 92 Q98 94 92 110 Q88 118 76 116" stroke="${c}" stroke-width="6" fill="none"/><path d="M18 84 L82 84 Q80 132 50 132 Q20 132 18 84 Z" fill="${c}"/>` },
+  teapot:  { label: 'Teapot', tags: ['dish','liquid','hot','handle','ceramic','breakable','serves'], face: { x: 48, y: 108, r: 16 }, hair: { x: 48, y: 74, w: 16 },
+    draw: c => `<path d="M76 106 L96 84 L100 88 L82 116 Z" fill="${c}"/><path d="M18 92 Q0 106 18 122" stroke="${c}" stroke-width="6" fill="none"/><ellipse cx="48" cy="108" rx="34" ry="30" fill="${c}"/><ellipse cx="48" cy="80" rx="18" ry="6" fill="#0002"/><circle cx="48" cy="72" r="4" fill="#333"/>` },
   pan:     { label: 'Frying Pan', tags: ['cookware','hot','nonstick','handle'], face: { x: 50, y: 58, r: 18 }, hair: { x: 50, y: 24, w: 24 },
     draw: c => `<rect x="46" y="88" width="8" height="52" rx="3" fill="#333"/><circle cx="50" cy="58" r="34" fill="#3a3a3a"/><circle cx="50" cy="58" r="28" fill="${c}"/>` },
+  saucepan:{ label: 'Saucepan', tags: ['cookware','hot','liquid','boils','handle','metal'], face: { x: 42, y: 110, r: 16 }, hair: { x: 42, y: 78, w: 24 },
+    draw: c => `<rect x="72" y="90" width="28" height="8" rx="3" fill="#333"/><rect x="10" y="80" width="64" height="58" rx="6" fill="${c}"/><rect x="8" y="76" width="68" height="8" rx="3" fill="#0003"/>` },
   pot:     { label: 'Pot', tags: ['cookware','hot','liquid','boils','deep','metal'], face: { x: 50, y: 104, r: 17 }, hair: { x: 50, y: 58, w: 20 },
-    draw: c => `<rect x="2" y="82" width="16" height="8" rx="3" fill="#333"/><rect x="82" y="82" width="16" height="8" rx="3" fill="#333"/><rect x="14" y="70" width="72" height="68" rx="6" fill="${c}"/><ellipse cx="50" cy="70" rx="38" ry="8" fill="#555"/><circle cx="50" cy="61" r="5" fill="#333"/>` },
+    draw: c => `<rect x="2" y="82" width="16" height="8" rx="3" fill="#333"/><rect x="82" y="82" width="16" height="8" rx="3" fill="#333"/><rect x="14" y="70" width="72" height="68" rx="6" fill="${c}"/><ellipse cx="50" cy="70" rx="38" ry="8" fill="#555"/><circle cx="50" cy="61" r="5" fill="#333"/>`,
+    variants: [{ face: { x: 50, y: 118, r: 14 }, hair: { x: 50, y: 82, w: 22 },
+      draw: c => `<rect x="0" y="100" width="12" height="8" rx="3" fill="#333"/><rect x="88" y="100" width="12" height="8" rx="3" fill="#333"/><rect x="8" y="92" width="84" height="46" rx="6" fill="${c}"/><ellipse cx="50" cy="92" rx="44" ry="7" fill="#555"/><circle cx="50" cy="84" r="4" fill="#333"/>` }] },
   kettle:  { label: 'Kettle', tags: ['cookware','hot','liquid','boils','whistles','handle'], face: { x: 50, y: 102, r: 17 }, hair: { x: 50, y: 58, w: 14 },
-    draw: c => `<path d="M24 72 Q50 30 76 72" stroke="#333" stroke-width="5" fill="none"/><path d="M84 104 L100 84 L97 80 L82 94 Z" fill="${c}"/><path d="M14 132 Q10 72 50 64 Q90 72 86 132 Z" fill="${c}"/><ellipse cx="50" cy="64" rx="17" ry="6" fill="#0003"/><circle cx="50" cy="57" r="4" fill="#333"/>` },
+    draw: c => `<path d="M24 72 Q50 30 76 72" stroke="#333" stroke-width="5" fill="none"/><path d="M84 104 L100 84 L97 80 L82 94 Z" fill="${c}"/><path d="M14 132 Q10 72 50 64 Q90 72 86 132 Z" fill="${c}"/><ellipse cx="50" cy="64" rx="17" ry="6" fill="#0003"/><circle cx="50" cy="57" r="4" fill="#333"/>`,
+    variants: [{ face: { x: 50, y: 104, r: 15 }, hair: { x: 50, y: 60, w: 12 },
+      draw: c => `<path d="M30 70 Q50 34 70 70" stroke="#333" stroke-width="5" fill="none"/><path d="M74 110 L96 86 L93 82 L72 100 Z" fill="${c}"/><path d="M22 138 L28 70 Q50 60 72 70 L78 138 Z" fill="${c}"/><circle cx="50" cy="60" r="4" fill="#333"/>` }] },
   colander:{ label: 'Colander', tags: ['cookware','holes','drains'], face: { x: 50, y: 96, r: 17 }, hair: { x: 50, y: 70, w: 30 },
     draw: c => `<rect x="4" y="70" width="14" height="6" rx="3" fill="${c}"/><rect x="82" y="70" width="14" height="6" rx="3" fill="${c}"/><path d="M12 70 L88 70 Q86 136 50 136 Q14 136 12 70 Z" fill="${c}"/><circle cx="36" cy="125" r="2" fill="#0005"/><circle cx="50" cy="128" r="2" fill="#0005"/><circle cx="64" cy="125" r="2" fill="#0005"/><circle cx="43" cy="118" r="2" fill="#0005"/><circle cx="57" cy="118" r="2" fill="#0005"/>` },
   /* garden & dig tools */
   shovel:  { label: 'Shovel', tags: ['garden','digs','dirt','handle'], face: { x: 50, y: 32, r: 13 }, hair: { x: 50, y: 8, w: 16 },
-    draw: c => `<rect x="46" y="52" width="8" height="88" rx="3" fill="${WOOD}"/><path d="M24 56 L24 22 Q50 -2 76 22 L76 56 Z" fill="${c}"/>` },
+    draw: c => `<rect x="46" y="52" width="8" height="88" rx="3" fill="${WOOD}"/><path d="M24 56 L24 22 Q50 -2 76 22 L76 56 Z" fill="${c}"/>`,
+    variants: [{ face: { x: 50, y: 34, r: 14 }, hair: { x: 50, y: 10, w: 22 },
+      draw: c => `<rect x="46" y="54" width="8" height="86" rx="3" fill="${WOOD}"/><rect x="24" y="10" width="52" height="48" rx="3" fill="${c}"/>` }] },
   pickaxe: { label: 'Pickaxe', tags: ['garden','digs','rock','pointed','breaks'], face: { x: 50, y: 34, r: 13 }, hair: { x: 50, y: 18, w: 14 },
     draw: c => `<rect x="46" y="40" width="8" height="100" rx="3" fill="${WOOD}"/><path d="M4 46 Q50 0 96 46 L84 48 Q50 22 16 48 Z" fill="${STEEL}"/><circle cx="50" cy="34" r="16" fill="${c}"/>` },
   rake:    { label: 'Rake', tags: ['garden','prongs','gathers','leaves'], face: { x: 50, y: 36, r: 12 }, hair: { x: 50, y: 20, w: 14 },
     draw: c => `<rect x="46" y="48" width="8" height="92" rx="3" fill="${WOOD}"/>${[12,22,32,42,52,62,72,82].map(x => `<rect x="${x}" y="6" width="5" height="22" rx="2" fill="${STEEL}"/>`).join('')}<rect x="10" y="24" width="80" height="8" rx="3" fill="${STEEL}"/><rect x="34" y="22" width="32" height="30" rx="7" fill="${c}"/>` },
+  hoe:     { label: 'Hoe', tags: ['garden','digs','dirt','weeds','handle'], face: { x: 50, y: 22, r: 12 }, hair: { x: 50, y: 6, w: 20 },
+    draw: c => `<rect x="46" y="34" width="8" height="106" rx="3" fill="${WOOD}"/><rect x="20" y="6" width="60" height="32" rx="4" fill="${c}"/>` },
   trowel:  { label: 'Trowel', tags: ['garden','digs','dirt','pointed','small'], face: { x: 50, y: 50, r: 14 }, hair: { x: 50, y: 14, w: 10 },
     draw: c => `<path d="M50 4 Q88 40 72 80 L28 80 Q12 40 50 4 Z" fill="${STEEL}"/><rect x="47" y="78" width="6" height="14" fill="#666"/><rect x="42" y="90" width="16" height="50" rx="6" fill="${c}"/>` },
   wateringcan: { label: 'Watering Can', tags: ['garden','liquid','waters','holes','handle'], face: { x: 46, y: 102, r: 17 }, hair: { x: 46, y: 64, w: 22 },
     draw: c => `<path d="M28 64 Q46 28 64 64" stroke="#333" stroke-width="5" fill="none"/><path d="M74 112 L94 76 L100 80 L80 116 Z" fill="${c}"/><ellipse cx="97" cy="77" rx="5" ry="7" fill="#555"/><rect x="16" y="64" width="62" height="74" rx="8" fill="${c}"/>` },
   /* workshop & cleaning */
   hammer:  { label: 'Hammer', tags: ['workshop','hits','nails','handle'], face: { x: 50, y: 37, r: 13 }, hair: { x: 50, y: 16, w: 22 },
-    draw: c => `<rect x="45" y="52" width="10" height="88" rx="3" fill="${WOOD}"/><rect x="16" y="16" width="68" height="38" rx="5" fill="${STEEL}"/><rect x="16" y="16" width="68" height="8" rx="4" fill="#a9b2bb"/>` },
+    draw: c => `<rect x="45" y="52" width="10" height="88" rx="3" fill="${WOOD}"/><rect x="16" y="16" width="68" height="38" rx="5" fill="${STEEL}"/><rect x="16" y="16" width="68" height="8" rx="4" fill="#a9b2bb"/>`,
+    variants: [{ face: { x: 50, y: 34, r: 15 }, hair: { x: 50, y: 12, w: 24 },
+      draw: c => `<rect x="45" y="54" width="10" height="86" rx="3" fill="${WOOD}"/><rect x="16" y="12" width="68" height="44" rx="16" fill="${c}"/>` }] },
   wrench:  { label: 'Wrench', tags: ['workshop','turns','grips','metal'], face: { x: 50, y: 48, r: 11 }, hair: { x: 50, y: 34, w: 12 },
     draw: c => `<rect x="43" y="56" width="14" height="84" rx="6" fill="#9aa4ad"/><path d="M22 18 L22 44 Q22 66 50 66 Q78 66 78 44 L78 18 L63 18 L63 34 L37 34 L37 18 Z" fill="${STEEL}"/>` },
+  pliers:  { label: 'Pliers', tags: ['workshop','grips','pointed','metal'], face: { x: 50, y: 60, r: 13 }, hair: { x: 50, y: 8, w: 10 },
+    draw: c => `<path d="M44 64 L28 138 L38 140 L50 70 Z" fill="${c}"/><path d="M56 64 L72 138 L62 140 L50 70 Z" fill="${c}"/><path d="M40 60 L44 6 L56 6 L60 60 Z" fill="${STEEL}"/><circle cx="50" cy="60" r="17" fill="${STEEL}"/>` },
   screwdriver: { label: 'Screwdriver', tags: ['workshop','turns','screws','pointed'], face: { x: 50, y: 94, r: 14 }, hair: { x: 50, y: 58, w: 16 },
     draw: c => `<rect x="47" y="4" width="6" height="56" fill="${STEEL}"/><rect x="34" y="56" width="32" height="84" rx="13" fill="${c}"/>` },
   saw:     { label: 'Saw', tags: ['workshop','cuts','teeth','sharp'], face: { x: 40, y: 80, r: 13 }, hair: { x: 40, y: 64, w: 14 },
     draw: c => `<path d="M4 62 L74 48 L74 112 L4 98 Z" fill="#b5bec7"/>${[6,14,22,30,38,46,54,62].map(x => `<path d="M${x} ${99 + x * 0.19} l4 7 l4 -5" fill="#b5bec7"/>`).join('')}<rect x="70" y="40" width="26" height="80" rx="9" fill="${c}"/><rect x="77" y="62" width="12" height="30" rx="5" fill="#0003"/>` },
+  scissors:{ label: 'Scissors', tags: ['workshop','cuts','sharp','pointed'], face: { x: 50, y: 70, r: 12 }, hair: { x: 50, y: 6, w: 12 },
+    draw: c => `<path d="M48 72 L36 4 L46 4 L56 72 Z" fill="${MET}"/><path d="M52 72 L64 4 L54 4 L44 72 Z" fill="${MET}"/><circle cx="33" cy="112" r="16" fill="none" stroke="${c}" stroke-width="7"/><circle cx="67" cy="112" r="16" fill="none" stroke="${c}" stroke-width="7"/><path d="M44 80 L38 98 M56 80 L62 98" stroke="${c}" stroke-width="7"/><circle cx="50" cy="70" r="15" fill="${MET}"/>` },
+  paintbrush: { label: 'Paintbrush', tags: ['workshop','bristles','spreads','handle'], face: { x: 50, y: 30, r: 12 }, hair: { x: 50, y: 6, w: 8 },
+    draw: c => `<rect x="44" y="70" width="12" height="70" rx="5" fill="${WOOD}"/><rect x="36" y="48" width="28" height="26" rx="3" fill="${MET}"/><path d="M36 50 L64 50 Q68 20 50 2 Q32 20 36 50 Z" fill="${c}"/>` },
   plunger: { label: 'Plunger', tags: ['cleaning','unclogs','suction','handle'], face: { x: 50, y: 33, r: 13 }, hair: { x: 50, y: 14, w: 20 },
     draw: c => `<rect x="46" y="48" width="8" height="92" rx="3" fill="#b07b46"/><path d="M18 50 Q18 14 50 14 Q82 14 82 50 Z" fill="${c}"/><rect x="16" y="46" width="68" height="7" rx="3" fill="#0003"/>` },
   broom:   { label: 'Broom', tags: ['cleaning','sweeps','bristles','handle'], face: { x: 50, y: 110, r: 16 }, hair: { x: 50, y: 74, w: 22 },
-    draw: c => `<rect x="46" y="0" width="8" height="82" rx="3" fill="${WOOD}"/><path d="M20 80 L80 80 L94 140 L6 140 Z" fill="#d9b45a"/><rect x="20" y="74" width="60" height="10" rx="3" fill="${c}"/>` },
+    draw: c => `<rect x="46" y="0" width="8" height="82" rx="3" fill="${WOOD}"/><path d="M20 80 L80 80 L94 140 L6 140 Z" fill="#d9b45a"/><rect x="20" y="74" width="60" height="10" rx="3" fill="${c}"/>`,
+    variants: [{ face: { x: 54, y: 110, r: 15 }, hair: { x: 50, y: 74, w: 22 },
+      draw: c => `<rect x="46" y="0" width="8" height="82" rx="3" fill="${WOOD}"/><path d="M22 80 L78 80 L100 140 L22 140 Z" fill="#d9b45a"/><rect x="20" y="74" width="60" height="10" rx="3" fill="${c}"/>` }] },
+  mop:     { label: 'Mop', tags: ['cleaning','absorbs','scrubs','liquid','handle'], face: { x: 50, y: 112, r: 15 }, hair: { x: 50, y: 78, w: 20 },
+    draw: c => `<rect x="46" y="0" width="8" height="84" rx="3" fill="${WOOD}"/><path d="M22 86 Q12 140 50 140 Q88 140 78 86 Z" fill="#e8e2d0"/>${[30,40,60,70].map(x => `<path d="M${x} 90 Q${x - 4} 115 ${x} 138" stroke="#d6cfba" stroke-width="2" fill="none"/>`).join('')}<rect x="26" y="78" width="48" height="10" rx="3" fill="${c}"/>` },
+  dustpan: { label: 'Dustpan', tags: ['cleaning','flat','gathers','handle'], face: { x: 50, y: 100, r: 17 }, hair: { x: 50, y: 70, w: 24 },
+    draw: c => `<rect x="44" y="30" width="12" height="44" rx="4" fill="${c}"/><path d="M10 70 L90 70 L84 134 L16 134 Z" fill="${c}"/><rect x="14" y="126" width="72" height="8" rx="2" fill="#0002"/>` },
   sponge:  { label: 'Sponge', tags: ['cleaning','absorbs','scrubs','holes'], face: { x: 50, y: 108, r: 17 }, hair: { x: 50, y: 62, w: 30 },
-    draw: c => `<rect x="14" y="62" width="72" height="76" rx="10" fill="#f2d14b"/><rect x="14" y="62" width="72" height="18" rx="8" fill="${c}"/><circle cx="26" cy="128" r="2.5" fill="#0002"/><circle cx="74" cy="92" r="2.5" fill="#0002"/><circle cx="76" cy="126" r="2" fill="#0002"/>` },
+    draw: c => `<rect x="14" y="62" width="72" height="76" rx="10" fill="#f2d14b"/><rect x="14" y="62" width="72" height="18" rx="8" fill="${c}"/><circle cx="26" cy="128" r="2.5" fill="#0002"/><circle cx="74" cy="92" r="2.5" fill="#0002"/><circle cx="76" cy="126" r="2" fill="#0002"/>`,
+    variants: [{ face: { x: 50, y: 104, r: 17 }, hair: { x: 50, y: 64, w: 26 },
+      draw: c => `<rect x="12" y="64" width="76" height="74" rx="32" fill="#f2d14b"/><circle cx="28" cy="120" r="2.5" fill="#0002"/><circle cx="74" cy="88" r="2.5" fill="#0002"/><circle cx="70" cy="126" r="2" fill="#0002"/><circle cx="30" cy="86" r="2" fill="#0002"/>` }] },
   toaster: { label: 'Toaster', tags: ['appliance','hot','electric'], face: { x: 50, y: 102, r: 18 }, hair: { x: 50, y: 60, w: 30 },
-    draw: c => `<rect x="12" y="62" width="76" height="76" rx="16" fill="${c}"/><rect x="26" y="57" width="18" height="7" rx="3" fill="#333"/><rect x="56" y="57" width="18" height="7" rx="3" fill="#333"/><rect x="86" y="88" width="8" height="14" rx="2" fill="#333"/>` }
+    draw: c => `<rect x="12" y="62" width="76" height="76" rx="16" fill="${c}"/><rect x="26" y="57" width="18" height="7" rx="3" fill="#333"/><rect x="56" y="57" width="18" height="7" rx="3" fill="#333"/><rect x="86" y="88" width="8" height="14" rx="2" fill="#333"/>`,
+    variants: [{ face: { x: 50, y: 106, r: 17 }, hair: { x: 50, y: 70, w: 34 },
+      draw: c => `<rect x="4" y="72" width="92" height="66" rx="14" fill="${c}"/>${[12,32,52,72].map(x => `<rect x="${x}" y="67" width="16" height="7" rx="3" fill="#333"/>`).join('')}` }] }
 };
 const CLIENT_TOOLS = Object.keys(TOOLS);
 // Fixed cast, tagged the same way so their lines come from the same system.
@@ -250,7 +301,9 @@ const CAST_TAGS = {
   pros:   ['garden','digs','dirt','handle'],
   bucket: ['liquid','holds','handle','deep']
 };
+function shapeOf(tool, v) { const t = TOOLS[tool]; return v && t.variants ? t.variants[v - 1] : t; }
 
+/* ---------- hair & hats ---------- */
 function drawHair(style, h, hc) {
   const { x, y, w } = h;
   switch (style) {
@@ -264,68 +317,201 @@ function drawHair(style, h, hc) {
     case 'curly': { let s = ''; for (let i = -2; i <= 2; i++) s += `<circle cx="${x + i * w * 0.38}" cy="${y - 1 - (Math.abs(i) === 2 ? -3 : 0)}" r="${w * 0.27}" fill="${hc}"/>`; return s; }
     case 'mohawk': return `<path d="M${x - 4} ${y + 3} L${x - 3} ${y - 14} L${x + 3} ${y - 17} L${x + 4} ${y + 3} Z" fill="${hc}"/>`;
     case 'part': return `<path d="M${x - w} ${y + 6} Q${x - w} ${y - 6} ${x - w * 0.2} ${y - 5} L${x - w * 0.1} ${y + 2} L${x} ${y - 6} Q${x + w} ${y - 6} ${x + w} ${y + 6} Z" fill="${hc}"/>`;
+    case 'bun': return `<path d="M${x - w * 0.8} ${y + 4} Q${x} ${y - w * 0.6} ${x + w * 0.8} ${y + 4} Z" fill="${hc}"/><circle cx="${x}" cy="${y - w * 0.45}" r="${Math.max(4, w * 0.3)}" fill="${hc}"/>`;
+    default: return '';
+  }
+}
+function drawHat(hat, h) {
+  const w = Math.max(h.w, 14);
+  switch (hat) {
+    case 'tophat': return `<rect x="${h.x - w * 0.85}" y="${h.y - 3}" width="${w * 1.7}" height="4" rx="1.5" fill="#222"/><rect x="${h.x - w * 0.5}" y="${h.y - 3 - w * 0.9}" width="${w}" height="${w * 0.9}" fill="#222"/><rect x="${h.x - w * 0.5}" y="${h.y - 8}" width="${w}" height="3" fill="#c0392b"/>`;
+    case 'beanie': return `<path d="M${h.x - w * 0.8} ${h.y + 2} Q${h.x} ${h.y - w * 1.1} ${h.x + w * 0.8} ${h.y + 2} Z" fill="#2e86c1"/><rect x="${h.x - w * 0.85}" y="${h.y - 1}" width="${w * 1.7}" height="5" rx="2" fill="#1b4f72"/><circle cx="${h.x}" cy="${h.y - w * 0.62}" r="3.5" fill="#f5f5f5"/>`;
+    case 'cap': return `<path d="M${h.x - w * 0.8} ${h.y + 3} Q${h.x} ${h.y - w * 1.05} ${h.x + w * 0.8} ${h.y + 3} Z" fill="#c0392b"/><path d="M${h.x + w * 0.3} ${h.y + 1} L${h.x + w * 1.35} ${h.y + 3} L${h.x + w * 0.3} ${h.y + 5} Z" fill="#922b21"/>`;
+    case 'flower': { const fx = h.x + h.w * 0.6, fy = h.y; let s = ''; for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5; s += `<circle cx="${fx + Math.cos(a) * 3.5}" cy="${fy + Math.sin(a) * 3.5}" r="2.8" fill="#f78fb3"/>`; } return s + `<circle cx="${fx}" cy="${fy}" r="2" fill="#f7d046"/>`; }
+    case 'headband': return `<rect x="${h.x - w * 0.8}" y="${h.y - 2}" width="${w * 1.6}" height="4" rx="2" fill="#e74c3c"/>`;
+    case 'bow': { const bx = h.x - h.w * 0.55, by = h.y - 1; return `<path d="M${bx} ${by} L${bx - 6} ${by - 4} L${bx - 6} ${by + 4} Z M${bx} ${by} L${bx + 6} ${by - 4} L${bx + 6} ${by + 4} Z" fill="#e84393"/><circle cx="${bx}" cy="${by}" r="1.8" fill="#b83280"/>`; }
     default: return '';
   }
 }
 
-function drawFace(f, fc, hc) {
+/* ---------- face parts ---------- */
+// All parts are drawn relative to the face anchor (x, y, r); side is -1 (left eye) or 1 (right eye).
+function drawEye(kind, ex, ey, r, side, sw) {
+  const dark = '#222';
+  switch (kind) {
+    case 'beady': return `<circle cx="${ex}" cy="${ey}" r="${r * 0.07}" fill="${dark}"/>`;
+    case 'oval': return `<ellipse cx="${ex}" cy="${ey}" rx="${r * 0.09}" ry="${r * 0.15}" fill="${dark}"/>`;
+    case 'wide': return `<circle cx="${ex}" cy="${ey}" r="${r * 0.18}" fill="#fff" stroke="${dark}" stroke-width="1.2"/><circle cx="${ex}" cy="${ey}" r="${r * 0.08}" fill="${dark}"/>`;
+    case 'glance': return `<circle cx="${ex}" cy="${ey}" r="${r * 0.17}" fill="#fff" stroke="${dark}" stroke-width="1.2"/><circle cx="${ex + r * 0.08}" cy="${ey}" r="${r * 0.07}" fill="${dark}"/>`;
+    case 'tiny': return `<circle cx="${ex}" cy="${ey}" r="${r * 0.19}" fill="#fff" stroke="${dark}" stroke-width="1.2"/><circle cx="${ex}" cy="${ey}" r="${r * 0.04}" fill="${dark}"/>`;
+    case 'lashes': return `<circle cx="${ex}" cy="${ey}" r="${r * 0.11}" fill="${dark}"/><path d="M${ex + side * r * 0.07} ${ey - r * 0.08} L${ex + side * r * 0.19} ${ey - r * 0.18}" stroke="${dark}" stroke-width="${sw * 0.7}" stroke-linecap="round"/>`;
+    case 'sleepy': return `<path d="M${ex - r * 0.14} ${ey} Q${ex} ${ey + r * 0.08} ${ex + r * 0.14} ${ey}" stroke="${dark}" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
+    case 'happy': return `<path d="M${ex - r * 0.14} ${ey + r * 0.04} Q${ex} ${ey - r * 0.14} ${ex + r * 0.14} ${ey + r * 0.04}" stroke="${dark}" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
+    case 'shut': return `<path d="M${ex - r * 0.14} ${ey} L${ex + r * 0.14} ${ey}" stroke="${dark}" stroke-width="${sw}" stroke-linecap="round"/>`;
+    case 'narrow': return `<circle cx="${ex}" cy="${ey + r * 0.03}" r="${r * 0.09}" fill="${dark}"/><path d="M${ex - r * 0.17} ${ey - r * 0.04} L${ex + r * 0.17} ${ey - r * 0.04}" stroke="${dark}" stroke-width="${sw}" stroke-linecap="round"/>`;
+    case 'wince': { const a = ex - side * r * 0.12, b = ex + side * r * 0.1; return `<path d="M${a} ${ey - r * 0.1} L${b} ${ey} L${a} ${ey + r * 0.1}" stroke="${dark}" stroke-width="${sw}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`; }
+    case 'teary': return `<circle cx="${ex}" cy="${ey}" r="${r * 0.11}" fill="${dark}"/>${drop(ex + side * r * 0.04, ey + r * 0.14, r * 0.6)}`;
+    default: return `<circle cx="${ex}" cy="${ey}" r="${r * 0.11}" fill="${dark}"/>`; // dots
+  }
+}
+function drop(x, y, r) { return `<path d="M${x} ${y} Q${x + r * 0.13} ${y + r * 0.22} ${x} ${y + r * 0.27} Q${x - r * 0.13} ${y + r * 0.22} ${x} ${y} Z" fill="#7fc8f8"/>`; }
+function drawBrows(kind, x, ey, dx, r, sw) {
+  if (!kind || kind === 'none') return '';
+  const by = ey - r * 0.36, dark = '#222';
+  if (kind === 'unibrow') return `<path d="M${x - dx - r * 0.2} ${by} Q${x} ${by - r * 0.06} ${x + dx + r * 0.2} ${by}" stroke="${dark}" stroke-width="${sw * 1.6}" fill="none" stroke-linecap="round"/>`;
+  let s = '';
+  for (const side of [-1, 1]) {
+    const ex = x + side * dx, ix = ex - side * r * 0.16, ox = ex + side * r * 0.18;
+    let k = kind; if (k === 'skeptical') k = side === 1 ? 'raised' : 'flat';
+    const w = k === 'thick' ? sw * 2.2 : sw;
+    const iy = { angry: by + r * 0.1, worried: by - r * 0.1, sad: by - r * 0.06, raised: by - r * 0.08, arched: by }[k] ?? by;
+    const oy = { angry: by - r * 0.06, worried: by + r * 0.04, sad: by + r * 0.1, raised: by - r * 0.06, arched: by + r * 0.02 }[k] ?? by;
+    if (k === 'raised' || k === 'arched') s += `<path d="M${ox} ${oy} Q${ex} ${Math.min(iy, oy) - r * 0.12} ${ix} ${iy}" stroke="${dark}" stroke-width="${w}" fill="none" stroke-linecap="round"/>`;
+    else s += `<path d="M${ix} ${iy} L${ox} ${oy}" stroke="${dark}" stroke-width="${w}" stroke-linecap="round"/>`;
+  }
+  return s;
+}
+function drawMouth(kind, x, my, r, sw) {
+  const dark = '#222', inside = '#5a2a2a';
+  const line = d => `<path d="${d}" stroke="${dark}" stroke-width="${sw}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+  switch (kind) {
+    case 'flat': return line(`M${x - 0.2 * r} ${my} L${x + 0.2 * r} ${my}`);
+    case 'tiny': return line(`M${x - 0.08 * r} ${my} L${x + 0.08 * r} ${my}`);
+    case 'o': return `<ellipse cx="${x}" cy="${my}" rx="${r * 0.09}" ry="${r * 0.12}" fill="${dark}"/>`;
+    case 'smirk': return line(`M${x - 0.2 * r} ${my} Q${x + 0.05 * r} ${my + 0.12 * r} ${x + 0.25 * r} ${my - 0.08 * r}`);
+    case 'grin': return `<path d="M${x - 0.3 * r} ${my - 0.04 * r} Q${x} ${my + 0.36 * r} ${x + 0.3 * r} ${my - 0.04 * r} Z" fill="#fff" stroke="${dark}" stroke-width="${sw * 0.9}" stroke-linejoin="round"/>`;
+    case 'cat': return line(`M${x - 0.2 * r} ${my} Q${x - 0.1 * r} ${my + 0.13 * r} ${x} ${my} Q${x + 0.1 * r} ${my + 0.13 * r} ${x + 0.2 * r} ${my}`);
+    case 'buck': return `<rect x="${x - 0.08 * r}" y="${my + 0.03 * r}" width="${0.16 * r}" height="${0.11 * r}" fill="#fff" stroke="${dark}" stroke-width="0.8"/>` + line(`M${x - 0.25 * r} ${my} Q${x} ${my + 0.08 * r} ${x + 0.25 * r} ${my}`);
+    case 'open': return `<ellipse cx="${x}" cy="${my + 0.03 * r}" rx="${r * 0.17}" ry="${r * 0.13}" fill="${inside}" stroke="${dark}" stroke-width="${sw * 0.7}"/>`;
+    case 'gasp': return `<ellipse cx="${x}" cy="${my + 0.06 * r}" rx="${r * 0.13}" ry="${r * 0.21}" fill="${inside}" stroke="${dark}" stroke-width="${sw * 0.7}"/>`;
+    case 'frown': return line(`M${x - 0.25 * r} ${my + 0.1 * r} Q${x} ${my - 0.12 * r} ${x + 0.25 * r} ${my + 0.1 * r}`);
+    case 'wobbly': { const p = []; for (let i = 0; i <= 6; i++) p.push(`${x - 0.27 * r + i * 0.09 * r} ${my + (i % 2 ? -0.05 : 0.05) * r}`); return line(`M${p.join(' L')}`); }
+    case 'grimace': { const w = 0.56 * r, h = 0.18 * r, x0 = x - w / 2, y0 = my - h / 2; let s = `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" rx="${h * 0.3}" fill="#fff" stroke="${dark}" stroke-width="${sw * 0.8}"/><path d="M${x0} ${my} L${x0 + w} ${my}`; for (let i = 1; i < 4; i++) s += ` M${x0 + w * i / 4} ${y0} L${x0 + w * i / 4} ${y0 + h}`; return s + `" stroke="${dark}" stroke-width="0.7"/>`; }
+    default: return line(`M${x - 0.25 * r} ${my} Q${x} ${my + 0.22 * r} ${x + 0.25 * r} ${my}`); // smile
+  }
+}
+function drawBeard(kind, x, y, r, hc) {
+  switch (kind) {
+    case 'full': return `<path d="M${x - 0.75 * r} ${y + 0.2 * r} Q${x - 0.7 * r} ${y + 1.15 * r} ${x} ${y + 1.2 * r} Q${x + 0.7 * r} ${y + 1.15 * r} ${x + 0.75 * r} ${y + 0.2 * r} Q${x + 0.5 * r} ${y + 0.78 * r} ${x} ${y + 0.78 * r} Q${x - 0.5 * r} ${y + 0.78 * r} ${x - 0.75 * r} ${y + 0.2 * r} Z" fill="${hc}"/>`;
+    case 'goatee': return `<path d="M${x - 0.15 * r} ${y + 0.76 * r} L${x + 0.15 * r} ${y + 0.76 * r} L${x} ${y + 1.1 * r} Z" fill="${hc}"/>`;
+    case 'chinstrap': return `<path d="M${x - 0.82 * r} ${y + 0.05 * r} Q${x - 0.7 * r} ${y + 1.12 * r} ${x} ${y + 1.12 * r} Q${x + 0.7 * r} ${y + 1.12 * r} ${x + 0.82 * r} ${y + 0.05 * r}" stroke="${hc}" stroke-width="${r * 0.12}" fill="none" stroke-linecap="round"/>`;
+    case 'stubble': { let s = ''; for (let i = 0; i < 15; i++) { const a = Math.PI * (0.12 + 0.76 * i / 14); s += `<circle cx="${x - Math.cos(a) * 0.62 * r}" cy="${y + 0.45 * r + Math.sin(a) * 0.5 * r}" r="${r * 0.035}" fill="${hc}" opacity=".75"/>`; } return s; }
+    case 'muttonchops': return [-1, 1].map(sd => `<path d="M${x + sd * 0.84 * r} ${y - 0.1 * r} Q${x + sd * 0.98 * r} ${y + 0.6 * r} ${x + sd * 0.48 * r} ${y + 0.78 * r} L${x + sd * 0.6 * r} ${y + 0.22 * r} Z" fill="${hc}"/>`).join('');
+    case 'long': return `<path d="M${x - 0.6 * r} ${y + 0.4 * r} Q${x - 0.55 * r} ${y + 1.15 * r} ${x} ${y + 1.75 * r} Q${x + 0.55 * r} ${y + 1.15 * r} ${x + 0.6 * r} ${y + 0.4 * r} Q${x} ${y + 0.82 * r} ${x - 0.6 * r} ${y + 0.4 * r} Z" fill="${hc}"/>`;
+    default: return '';
+  }
+}
+function drawMustache(kind, x, y, r, hc) {
+  const classic = `<path d="M${x - 0.45 * r} ${y + 0.36 * r} Q${x - 0.2 * r} ${y + 0.14 * r} ${x} ${y + 0.3 * r} Q${x + 0.2 * r} ${y + 0.14 * r} ${x + 0.45 * r} ${y + 0.36 * r} Q${x + 0.2 * r} ${y + 0.44 * r} ${x} ${y + 0.38 * r} Q${x - 0.2 * r} ${y + 0.44 * r} ${x - 0.45 * r} ${y + 0.36 * r} Z" fill="${hc}"/>`;
+  switch (kind) {
+    case 'classic': return classic;
+    case 'handlebar': return classic + [-1, 1].map(sd => `<path d="M${x + sd * 0.43 * r} ${y + 0.36 * r} q${sd * 0.18 * r} ${-0.02 * r} ${sd * 0.14 * r} ${-0.22 * r}" stroke="${hc}" stroke-width="${r * 0.07}" fill="none" stroke-linecap="round"/>`).join('');
+    case 'walrus': { const t = y + 0.62 * r; return `<path d="M${x - 0.55 * r} ${y + 0.32 * r} Q${x} ${y + 0.1 * r} ${x + 0.55 * r} ${y + 0.32 * r} L${x + 0.45 * r} ${t + 0.08 * r} L${x + 0.3 * r} ${t} L${x + 0.15 * r} ${t + 0.1 * r} L${x} ${t} L${x - 0.15 * r} ${t + 0.1 * r} L${x - 0.3 * r} ${t} L${x - 0.45 * r} ${t + 0.08 * r} Z" fill="${hc}"/>`; }
+    case 'pencil': return `<path d="M${x - 0.3 * r} ${y + 0.37 * r} Q${x} ${y + 0.27 * r} ${x + 0.3 * r} ${y + 0.37 * r}" stroke="${hc}" stroke-width="${r * 0.06}" fill="none" stroke-linecap="round"/>`;
+    case 'toothbrush': return `<rect x="${x - 0.13 * r}" y="${y + 0.27 * r}" width="${0.26 * r}" height="${0.13 * r}" rx="${r * 0.03}" fill="${hc}"/>`;
+    default: return '';
+  }
+}
+function drawEyewear(kind, x, ey, dx, r) {
+  switch (kind) {
+    case 'glasses': return `<g stroke="#222" stroke-width="1.3" fill="#ffffff33"><circle cx="${x - dx}" cy="${ey}" r="${r * 0.26}"/><circle cx="${x + dx}" cy="${ey}" r="${r * 0.26}"/><path d="M${x - dx + r * 0.26} ${ey} L${x + dx - r * 0.26} ${ey}" fill="none"/></g>`;
+    case 'squareglasses': { const s = r * 0.46; return `<g stroke="#222" stroke-width="1.3" fill="#ffffff33"><rect x="${x - dx - s / 2}" y="${ey - s * 0.4}" width="${s}" height="${s * 0.8}" rx="1.5"/><rect x="${x + dx - s / 2}" y="${ey - s * 0.4}" width="${s}" height="${s * 0.8}" rx="1.5"/><path d="M${x - dx + s / 2} ${ey} L${x + dx - s / 2} ${ey}" fill="none"/></g>`; }
+    case 'monocle': return `<circle cx="${x + dx}" cy="${ey}" r="${r * 0.25}" stroke="#c9a227" stroke-width="1.4" fill="none"/><path d="M${x + dx + r * 0.25} ${ey} Q${x + r} ${ey + 0.5 * r} ${x + 0.8 * r} ${ey + 1.1 * r}" stroke="#c9a227" stroke-width=".8" fill="none"/>`;
+    case 'eyepatch': return `<path d="M${x - 0.9 * r} ${ey - 0.45 * r} L${x + 0.9 * r} ${ey + 0.1 * r}" stroke="#222" stroke-width="1"/><ellipse cx="${x + dx}" cy="${ey}" rx="${r * 0.2}" ry="${r * 0.17}" fill="#222"/>`;
+    default: return '';
+  }
+}
+function drawEars(kind, x, y, r) {
+  if (kind === 'studs') return [-1, 1].map(sd => `<circle cx="${x + sd * 1.02 * r}" cy="${y + 0.28 * r}" r="${r * 0.08}" fill="#f1c40f" stroke="#b7950b" stroke-width=".6"/>`).join('');
+  if (kind === 'hoops') return [-1, 1].map(sd => `<circle cx="${x + sd * 1.02 * r}" cy="${y + 0.42 * r}" r="${r * 0.15}" fill="none" stroke="#f1c40f" stroke-width="${Math.max(1, r * 0.06)}"/>`).join('');
+  return '';
+}
+function drawNeck(kind, x, y, r) {
+  const gold = '#d4ac0d';
+  switch (kind) {
+    case 'bowtie': { const by = y + 1.45 * r, sz = r * 0.32; return `<path d="M${x} ${by} L${x - 2 * sz} ${by - sz} L${x - 2 * sz} ${by + sz} Z M${x} ${by} L${x + 2 * sz} ${by - sz} L${x + 2 * sz} ${by + sz} Z" fill="#c0392b"/><circle cx="${x}" cy="${by}" r="${sz * 0.45}" fill="#922b21"/>`; }
+    case 'pearls': { let s = ''; for (let i = -4; i <= 4; i++) s += `<circle cx="${x + i * 0.17 * r}" cy="${y + 1.18 * r + i * i * 0.014 * r}" r="${r * 0.08}" fill="#fbfbf5" stroke="#bbb" stroke-width=".5"/>`; return s; }
+    case 'chain': return `<path d="M${x - 0.62 * r} ${y + 1.05 * r} Q${x} ${y + 1.6 * r} ${x + 0.62 * r} ${y + 1.05 * r}" stroke="${gold}" stroke-width="${r * 0.07}" stroke-dasharray="${r * 0.08} ${r * 0.04}" fill="none"/>`;
+    case 'pendant': return `<path d="M${x - 0.55 * r} ${y + 1.0 * r} Q${x} ${y + 1.42 * r} ${x + 0.55 * r} ${y + 1.0 * r}" stroke="${gold}" stroke-width="${r * 0.04}" fill="none"/><circle cx="${x}" cy="${y + 1.32 * r}" r="${r * 0.11}" fill="#5dade2" stroke="${gold}" stroke-width="${r * 0.04}"/>`;
+    case 'scarf': return `<rect x="${x - 0.8 * r}" y="${y + 1.08 * r}" width="${1.6 * r}" height="${0.3 * r}" rx="${0.12 * r}" fill="#16a085"/><rect x="${x + 0.25 * r}" y="${y + 1.25 * r}" width="${0.26 * r}" height="${0.55 * r}" rx="${0.06 * r}" fill="#138d75"/>`;
+    case 'tie': return `<path d="M${x - 0.11 * r} ${y + 1.12 * r} L${x + 0.11 * r} ${y + 1.12 * r} L${x + 0.15 * r} ${y + 1.72 * r} L${x} ${y + 1.92 * r} L${x - 0.15 * r} ${y + 1.72 * r} Z" fill="#2c3e50"/>`;
+    default: return '';
+  }
+}
+function drawCheeks(kind, x, y, r) {
+  if (kind === 'blush') return [-1, 1].map(sd => `<ellipse cx="${x + sd * 0.62 * r}" cy="${y + 0.24 * r}" rx="${r * 0.16}" ry="${r * 0.08}" fill="#f08a9a" opacity=".6"/>`).join('');
+  if (kind === 'freckles') { let s = ''; for (const sd of [-1, 1]) for (const [ox, oy] of [[0.5, 0.18], [0.64, 0.26], [0.56, 0.34]]) s += `<circle cx="${x + sd * ox * r}" cy="${y + oy * r}" r="${r * 0.035}" fill="#a0522d" opacity=".7"/>`; return s; }
+  if (kind === 'mole') return `<circle cx="${x + 0.42 * r}" cy="${y + 0.3 * r}" r="${r * 0.05}" fill="#4a3426"/>`;
+  return '';
+}
+
+// Rest features `f` plus an optional expression (brows/eyes/mouth/fx) that overrides them.
+function drawFace(f, fc, hc, expr) {
   const { x, y, r } = fc; const sw = Math.max(1.3, r * 0.1);
   const ey = y - 0.12 * r, dx = 0.38 * r, my = y + 0.55 * r;
-  let s = '';
-  // eyes
-  for (const ex of [x - dx, x + dx]) {
-    if (f.eyes === 'dots') s += `<circle cx="${ex}" cy="${ey}" r="${r * 0.11}" fill="#222"/>`;
-    else if (f.eyes === 'wide') s += `<circle cx="${ex}" cy="${ey}" r="${r * 0.18}" fill="#fff" stroke="#222" stroke-width="1.2"/><circle cx="${ex}" cy="${ey}" r="${r * 0.08}" fill="#222"/>`;
-    else if (f.eyes === 'sleepy') s += `<path d="M${ex - r * 0.14} ${ey} Q${ex} ${ey + r * 0.08} ${ex + r * 0.14} ${ey}" stroke="#222" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
-    else s += `<path d="M${ex - r * 0.14} ${ey + r * 0.04} Q${ex} ${ey - r * 0.14} ${ex + r * 0.14} ${ey + r * 0.04}" stroke="#222" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
-  }
-  if (f.brows) s += `<path d="M${x - dx - r * 0.18} ${ey - r * 0.3} L${x - dx + r * 0.16} ${ey - r * 0.22} M${x + dx + r * 0.18} ${ey - r * 0.3} L${x + dx - r * 0.16} ${ey - r * 0.22}" stroke="#222" stroke-width="${sw}" stroke-linecap="round"/>`;
-  // facial hair (under mouth)
-  if (f.fhair === 'beard') s += `<path d="M${x - 0.75 * r} ${y + 0.2 * r} Q${x - 0.7 * r} ${y + 1.15 * r} ${x} ${y + 1.2 * r} Q${x + 0.7 * r} ${y + 1.15 * r} ${x + 0.75 * r} ${y + 0.2 * r} Q${x + 0.5 * r} ${y + 0.78 * r} ${x} ${y + 0.78 * r} Q${x - 0.5 * r} ${y + 0.78 * r} ${x - 0.75 * r} ${y + 0.2 * r} Z" fill="${hc}"/>`;
-  if (f.fhair === 'goatee') s += `<path d="M${x - 0.15 * r} ${y + 0.74 * r} L${x + 0.15 * r} ${y + 0.74 * r} L${x} ${y + 1.08 * r} Z" fill="${hc}"/>`;
-  // mouth
-  if (f.mouth === 'smile') s += `<path d="M${x - 0.25 * r} ${my} Q${x} ${my + 0.22 * r} ${x + 0.25 * r} ${my}" stroke="#222" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
-  else if (f.mouth === 'flat') s += `<path d="M${x - 0.2 * r} ${my} L${x + 0.2 * r} ${my}" stroke="#222" stroke-width="${sw}" stroke-linecap="round"/>`;
-  else if (f.mouth === 'o') s += `<ellipse cx="${x}" cy="${my}" rx="${r * 0.09}" ry="${r * 0.12}" fill="#222"/>`;
-  else s += `<path d="M${x - 0.2 * r} ${my} Q${x + 0.05 * r} ${my + 0.12 * r} ${x + 0.25 * r} ${my - 0.08 * r}" stroke="#222" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
-  if (f.fhair === 'mustache') s += `<path d="M${x - 0.45 * r} ${y + 0.36 * r} Q${x - 0.2 * r} ${y + 0.14 * r} ${x} ${y + 0.3 * r} Q${x + 0.2 * r} ${y + 0.14 * r} ${x + 0.45 * r} ${y + 0.36 * r} Q${x + 0.2 * r} ${y + 0.44 * r} ${x} ${y + 0.38 * r} Q${x - 0.2 * r} ${y + 0.44 * r} ${x - 0.45 * r} ${y + 0.36 * r} Z" fill="${hc}"/>`;
+  const e = expr || {}; const fx = e.fx || [];
+  let s = drawCheeks(f.cheeks, x, y, r);
+  if (fx.includes('blush') && f.cheeks !== 'blush') s += drawCheeks('blush', x, y, r);
+  s += drawBeard(f.beard, x, y, r, hc);
+  for (const side of [-1, 1]) if (!(f.eyewear === 'eyepatch' && side === 1)) s += drawEye(e.eyes || f.eyes, x + side * dx, ey, r, side, sw);
+  s += drawBrows(e.brows || f.brows, x, ey, dx, r, sw);
+  s += drawMouth(e.mouth || f.mouth, x, my, r, sw);
+  s += drawMustache(f.mustache, x, y, r, hc);
+  if (fx.includes('sweat')) s += drop(x + 0.82 * r, y - 0.62 * r, r * 1.3);
+  s += drawEyewear(f.eyewear, x, ey, dx, r);
+  s += drawEars(f.ears, x, y, r);
+  s += drawNeck(f.neck, x, y, r);
   return s;
 }
 
-function drawAcc(acc, fc, h) {
-  const { x, y, r } = fc; const ey = y - 0.12 * r, dx = 0.38 * r;
-  switch (acc) {
-    case 'glasses': return `<g stroke="#222" stroke-width="1.3" fill="none"><circle cx="${x - dx}" cy="${ey}" r="${r * 0.26}"/><circle cx="${x + dx}" cy="${ey}" r="${r * 0.26}"/><path d="M${x - dx + r * 0.26} ${ey} L${x + dx - r * 0.26} ${ey}"/></g>`;
-    case 'monocle': return `<circle cx="${x + dx}" cy="${ey}" r="${r * 0.25}" stroke="#c9a227" stroke-width="1.4" fill="none"/><path d="M${x + dx + r * 0.25} ${ey} Q${x + r} ${y + 0.4 * r} ${x + 0.8 * r} ${y + r}" stroke="#c9a227" stroke-width=".8" fill="none"/>`;
-    case 'bowtie': { const by = y + 1.45 * r, sz = r * 0.32; return `<path d="M${x} ${by} L${x - 2 * sz} ${by - sz} L${x - 2 * sz} ${by + sz} Z M${x} ${by} L${x + 2 * sz} ${by - sz} L${x + 2 * sz} ${by + sz} Z" fill="#c0392b"/><circle cx="${x}" cy="${by}" r="${sz * 0.45}" fill="#922b21"/>`; }
-    case 'tophat': { const w = Math.max(h.w, 14); return `<rect x="${h.x - w * 0.85}" y="${h.y - 3}" width="${w * 1.7}" height="4" rx="1.5" fill="#222"/><rect x="${h.x - w * 0.5}" y="${h.y - 3 - w * 0.9}" width="${w}" height="${w * 0.9}" fill="#222"/><rect x="${h.x - w * 0.5}" y="${h.y - 8}" width="${w}" height="3" fill="#c0392b"/>`; }
-    case 'beanie': { const w = Math.max(h.w, 14); return `<path d="M${h.x - w * 0.8} ${h.y + 2} Q${h.x} ${h.y - w * 1.1} ${h.x + w * 0.8} ${h.y + 2} Z" fill="#2e86c1"/><rect x="${h.x - w * 0.85}" y="${h.y - 1}" width="${w * 1.7}" height="5" rx="2" fill="#1b4f72"/><circle cx="${h.x}" cy="${h.y - w * 0.62}" r="3.5" fill="#f5f5f5"/>`; }
-    case 'flower': { const fx = h.x + h.w * 0.6, fy = h.y; let s = ''; for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5; s += `<circle cx="${fx + Math.cos(a) * 3.5}" cy="${fy + Math.sin(a) * 3.5}" r="2.8" fill="#f78fb3"/>`; } return s + `<circle cx="${fx}" cy="${fy}" r="2" fill="#f7d046"/>`; }
-    default: return '';
-  }
+/* ---------- expressions ---------- */
+// Each emotion is a set of options; every time someone speaks or reacts, one combination is picked at random.
+const EMOTIONS = {
+  nervous:     { brows: ['worried'], eyes: ['glance', 'dots', 'wide'], mouth: ['wobbly', 'grimace', 'flat'], fx: [[], ['sweat']] },
+  scared:      { brows: ['worried', 'raised'], eyes: ['tiny', 'wide'], mouth: ['gasp', 'open', 'grimace'], fx: [['sweat'], []] },
+  sad:         { brows: ['sad', 'worried'], eyes: ['teary', 'shut', 'dots'], mouth: ['frown', 'wobbly'], fx: [[]] },
+  angry:       { brows: ['angry'], eyes: ['narrow', 'dots'], mouth: ['frown', 'grimace', 'flat'], fx: [[]] },
+  smug:        { brows: ['skeptical', 'flat'], eyes: ['narrow', 'happy'], mouth: ['smirk'], fx: [[]] },
+  happy:       { brows: ['raised', 'none'], eyes: ['happy', 'dots'], mouth: ['grin', 'smile'], fx: [[], ['blush']] },
+  relieved:    { brows: ['worried', 'none'], eyes: ['shut', 'happy'], mouth: ['smile'], fx: [[]] },
+  stern:       { brows: ['flat', 'angry'], eyes: ['narrow', 'dots'], mouth: ['flat'], fx: [[]] },
+  surprised:   { brows: ['raised'], eyes: ['wide', 'dots'], mouth: ['o', 'open'], fx: [[]] },
+  confident:   { brows: ['flat', 'raised', 'none'], eyes: ['dots', 'narrow'], mouth: ['smile', 'smirk'], fx: [[]] },
+  embarrassed: { brows: ['worried'], eyes: ['glance', 'shut', 'wince'], mouth: ['wobbly', 'flat'], fx: [['blush']] }
+};
+function makeExpr(emo) {
+  const E = EMOTIONS[emo]; if (!E) return null; // 'neutral' or unknown: resting face
+  return { brows: rand(E.brows), eyes: rand(E.eyes), mouth: rand(E.mouth), fx: rand(E.fx) };
 }
 
+/* ---------- random features ---------- */
+const maybe = (p, opts) => Math.random() < p ? rand(opts) : 'none';
 function randFeat() {
   return {
     color: rand(BODYC), hairColor: rand(HAIRC),
-    eyes: rand(['dots','dots','wide','sleepy','happy']),
-    mouth: rand(['smile','flat','o','smirk']),
-    brows: Math.random() < 0.3,
-    hair: rand(['none','tuft','bowl','spiky','curly','mohawk','part']),
-    fhair: rand(['none','none','mustache','beard','goatee']),
-    acc: rand(['none','none','glasses','monocle','bowtie','tophat','beanie','flower'])
+    eyes: rand(['dots', 'dots', 'wide', 'sleepy', 'happy', 'lashes', 'beady', 'oval', 'glance']),
+    mouth: rand(['smile', 'flat', 'o', 'smirk', 'grin', 'tiny', 'cat', 'buck']),
+    brows: maybe(0.45, ['flat', 'thick', 'arched', 'unibrow']),
+    hair: rand(['none', 'tuft', 'bowl', 'spiky', 'curly', 'mohawk', 'part', 'bun']),
+    mustache: maybe(0.35, ['classic', 'handlebar', 'walrus', 'pencil', 'toothbrush']),
+    beard: maybe(0.3, ['full', 'goatee', 'chinstrap', 'stubble', 'muttonchops', 'long']),
+    hat: maybe(0.4, ['tophat', 'beanie', 'cap', 'flower', 'headband', 'bow']),
+    eyewear: maybe(0.25, ['glasses', 'squareglasses', 'monocle', 'eyepatch']),
+    neck: maybe(0.4, ['bowtie', 'pearls', 'chain', 'pendant', 'scarf', 'tie']),
+    ears: maybe(0.25, ['studs', 'hoops']),
+    cheeks: maybe(0.2, ['freckles', 'mole', 'blush'])
   };
 }
 
-function drawTool(tool, f) {
-  const t = TOOLS[tool];
-  const hatOnTop = f.acc === 'tophat' || f.acc === 'beanie';
-  return t.draw(f.color) + (hatOnTop ? '' : drawHair(f.hair, t.hair, f.hairColor)) + drawFace(f, t.face, f.hairColor) + drawAcc(f.acc, t.face, t.hair);
+// ch = { tool, variant, feat }
+function drawTool(ch, expr) {
+  const sh = shapeOf(ch.tool, ch.variant); const f = ch.feat;
+  const hatHidesHair = ['tophat', 'beanie', 'cap'].includes(f.hat);
+  return sh.draw(f.color) + (hatHidesHair ? '' : drawHair(f.hair, sh.hair, f.hairColor)) + drawFace(f, sh.face, f.hairColor, expr) + drawHat(f.hat, sh.hair);
 }
 
-function drawBucket() {
-  const f = { eyes: 'dots', mouth: 'smile', brows: false, fhair: 'none' };
-  const fc = { x: 50, y: 80, r: 18 };
+const BUCKET_FACE = { eyes: 'dots', mouth: 'smile', brows: 'none', eyewear: 'glasses' };
+function drawBucket(expr) {
   return `
     <path d="M17 46 Q12 92 19 108 L31 108 L30 50 Z" fill="#f2cf5b"/>
     <path d="M83 46 Q88 92 81 108 L69 108 L70 50 Z" fill="#f2cf5b"/>
@@ -334,21 +520,16 @@ function drawBucket() {
     <path d="M26 92 L74 92" stroke="#6b8fb0" stroke-width="2"/><path d="M28 116 L72 116" stroke="#6b8fb0" stroke-width="2"/>
     <ellipse cx="50" cy="44" rx="28" ry="6" fill="#6b8fb0"/>
     <path d="M19 50 Q20 28 50 27 Q80 28 81 50 Q70 41 60 52 Q50 40 40 52 Q30 41 19 50 Z" fill="#f2cf5b"/>
-    ${drawFace(f, fc, '#f2cf5b')}
-    <g stroke="#222" stroke-width="1.6" fill="#ffffff55"><circle cx="${50 - 0.38 * 18}" cy="${80 - 0.12 * 18}" r="5.5"/><circle cx="${50 + 0.38 * 18}" cy="${80 - 0.12 * 18}" r="5.5"/><path d="M${50 - 0.38 * 18 + 5.5} ${80 - 0.12 * 18} L${50 + 0.38 * 18 - 5.5} ${80 - 0.12 * 18}" fill="none"/></g>`;
+    ${drawFace(BUCKET_FACE, { x: 50, y: 80, r: 18 }, '#f2cf5b', expr)}`;
 }
-
-function drawJudge() {
-  const f = { eyes: 'sleepy', mouth: 'flat', brows: true, fhair: 'none' };
-  const fc = { x: 52, y: 108, r: 15 };
+const JUDGE_FACE = { eyes: 'sleepy', mouth: 'flat', brows: 'flat', eyewear: 'glasses' };
+function drawJudge(expr) {
   let wig = ''; for (let i = -3; i <= 3; i++) wig += `<circle cx="${50 + i * 9}" cy="${72 + Math.abs(i) * 4}" r="7" fill="#f1f1f1" stroke="#ccc"/>`;
-  return `<path d="M10 132 L90 132 Q92 92 52 78 Q20 86 10 132 Z" fill="#d8dde3"/><rect x="8" y="130" width="84" height="8" rx="2" fill="#8c96a0"/>${wig}${drawFace(f, fc, '#eee')}${drawAcc('glasses', fc, {})}`;
+  return `<path d="M10 132 L90 132 Q92 92 52 78 Q20 86 10 132 Z" fill="#d8dde3"/><rect x="8" y="130" width="84" height="8" rx="2" fill="#8c96a0"/>${wig}${drawFace(JUDGE_FACE, { x: 52, y: 108, r: 15 }, '#eee', expr)}`;
 }
-
-function drawProsecutor() {
-  const f = { eyes: 'dots', mouth: 'smirk', brows: true, fhair: 'mustache', hairColor: '#222' };
-  const fc = { x: 50, y: 30, r: 14 };
-  return `<rect x="46" y="56" width="8" height="84" rx="3" fill="#a5713f"/><path d="M26 8 L74 8 L74 46 Q50 72 26 46 Z" fill="#8c96a0"/>${drawHair('part', { x: 50, y: 10, w: 22 }, '#222')}${drawFace(f, fc, '#222')}${drawAcc('bowtie', { x: 50, y: 40, r: 14 }, {})}`;
+const PROS_FACE = { eyes: 'dots', mouth: 'smirk', brows: 'flat', mustache: 'classic' };
+function drawProsecutor(expr) {
+  return `<rect x="46" y="56" width="8" height="84" rx="3" fill="${WOOD}"/><path d="M26 8 L74 8 L74 46 Q50 72 26 46 Z" fill="${STEEL}"/>${drawHair('part', { x: 50, y: 10, w: 22 }, '#222')}${drawFace(PROS_FACE, { x: 50, y: 30, r: 14 }, '#222', expr)}${drawNeck('bowtie', 50, 40, 14)}`;
 }
 
 /* ---------- scene ---------- */
@@ -356,24 +537,25 @@ const scene = document.getElementById('scene');
 function place(id, inner, x, y, s) {
   return `<g transform="translate(${x},${y}) scale(${s})"><g id="${id}">${inner}</g></g>`;
 }
+// game.faces holds the current expression for each role (judge, pros, bucket, client, witness).
 function renderScene() {
-  const c = game.case; const story = c && c.mode === 'story';
+  const c = game.case; const story = c && c.mode === 'story'; const F = game.faces || {};
   let s = `
     <rect x="0" y="0" width="400" height="230" fill="#e9dcc6"/>
     <rect x="0" y="120" width="400" height="45" fill="#c9a77c"/>
     <rect x="0" y="165" width="400" height="65" fill="#b98d5a"/>`;
-  s += place('char-judge', drawJudge(), 165, -16, 0.7);
+  s += place('char-judge', drawJudge(F.judge), 165, -16, 0.7);
   s += `<rect x="148" y="96" width="104" height="66" rx="3" fill="#7a4a2a"/><rect x="148" y="96" width="104" height="8" fill="#8f5a35"/>
         <text x="200" y="135" text-anchor="middle" font-size="8" font-family="Georgia, serif" fill="#e9d2a8">JUDGE IRON</text>`;
   if (c) {
-    const witness = story ? c.client : c.witness;
-    s += place('char-witness', drawTool(witness.tool, witness.feat), 250, 52, 0.58);
+    const atStand = story ? 'client' : 'witness';
+    s += place(`char-${atStand}`, drawTool(c[atStand], F[atStand]), 250, 52, 0.58);
   }
   s += `<rect x="252" y="122" width="56" height="42" rx="3" fill="#8f5a35"/>`;
-  s += place('char-pros', drawProsecutor(), 322, 66, 0.68);
+  s += place('char-pros', drawProsecutor(F.pros), 322, 66, 0.68);
   s += `<rect x="300" y="150" width="96" height="40" rx="3" fill="#7a4a2a"/>`;
-  s += place('char-bucket', drawBucket(), 8, 66, 0.72);
-  if (c && !story) s += place('char-client', drawTool(c.client.tool, c.client.feat), 84, 74, 0.62);
+  s += place('char-bucket', drawBucket(F.bucket), 8, 66, 0.72);
+  if (c && !story) s += place('char-client', drawTool(c.client, F.client), 84, 74, 0.62);
   s += `<rect x="4" y="150" width="140" height="40" rx="3" fill="#7a4a2a"/>`;
   scene.innerHTML = s;
 }
@@ -389,7 +571,9 @@ function makeChar(exclude) {
   const label = TOOLS[tool].label;
   const same = NAMES.filter(n => n[0] === label[0]);
   const name = rand(same.length ? same : NAMES);
-  return { tool, name, label: `${name} the ${label}`, kind: label.toLowerCase(), feat: randFeat() };
+  const nv = TOOLS[tool].variants ? TOOLS[tool].variants.length : 0;
+  const variant = Math.floor(Math.random() * (nv + 1));
+  return { tool, variant, name, label: `${name} the ${label}`, kind: label.toLowerCase(), feat: randFeat() };
 }
 
 function genCase(n) {
@@ -445,7 +629,7 @@ function genCase(n) {
 }
 
 /* ---------- game state ---------- */
-const game = { caseNo: 0, won: 0, lost: 0, case: null, patience: 3, sel: null, selEv: null, struck: new Set(), answers: {}, wrongQ: null };
+const game = { caseNo: 0, won: 0, lost: 0, case: null, patience: 3, sel: null, selEv: null, struck: new Set(), answers: {}, wrongQ: null, faces: {} };
 const main = document.getElementById('main');
 
 function stats() {
@@ -509,7 +693,10 @@ const LINES = {
       bristles: ['I bristle at the accusation, Your Honor.'],
       absorbs: ['I have absorbed a lot this week.'],
       scrubs: ['My record is spotless.'],
-      electric: ['I was plugged in at home all night.']
+      electric: ['I was plugged in at home all night.'],
+      presses: ['I do not pressure anyone. I just roll along.'],
+      grates: ['I know I grate on some people. That is not a crime.'],
+      weeds: ['I only go after weeds. Never people.']
     }
   },
   witnessOpen: {
@@ -556,7 +743,9 @@ const LINES = {
       suction: ['I got sucked into it.'],
       serves: ['I may have served up a bit of fiction.'],
       scoops: ['I may have gotten the scoop wrong.'],
-      gathers: ['I gathered that from somewhere else.']
+      gathers: ['I gathered that from somewhere else.'],
+      presses: ['I was under a lot of pressure.'],
+      grates: ['I may have shredded the facts a little.']
     }
   },
   judgeOpen: {
@@ -629,55 +818,94 @@ function pickLine(moment, tags) {
   return tl.length && Math.random() < TAG_LINE_CHANCE ? rand(tl) : rand(LINES[moment].plain);
 }
 // A dialogue line from a speaker, chosen with that speaker's own tags.
-const say = (who, moment) => [who, pickLine(moment, tagsOf(who))];
+// Speaker emotion options and listener reactions for each moment.
+const MOMENT_EMO = {
+  clientOpen:     [['nervous', 'sad', 'scared', 'nervous'], {}],
+  witnessOpen:    [['confident', 'smug', 'neutral'], { client: 'nervous' }],
+  witnessCaught:  [['embarrassed', 'nervous', 'scared', 'sad'], { pros: 'angry', client: 'relieved' }],
+  judgeOpen:      [['stern', 'neutral'], {}],
+  sustained:      [['stern'], { witness: 'scared', pros: 'angry', client: 'happy' }],
+  judgeLiesWin:   [['stern'], { client: 'relieved', pros: 'sad', witness: 'embarrassed' }],
+  judgeStoryWin:  [['stern', 'neutral'], { client: 'relieved', pros: 'sad' }],
+  judgeDone:      [['angry', 'stern'], { client: 'scared', bucket: 'sad' }],
+  prosCharge:     [['smug', 'stern'], { client: 'nervous' }],
+  prosRests:      [['sad', 'angry', 'embarrassed'], { client: 'happy', witness: 'embarrassed' }],
+  prosAgrees:     [['smug'], { bucket: 'embarrassed', witness: 'smug' }],
+  bucketReady:    [['confident', 'neutral'], { client: 'relieved' }],
+  bucketLies:     [['confident', 'stern'], {}],
+  bucketStory:    [['confident', 'neutral'], { client: 'nervous' }],
+  bucketRetreat:  [['embarrassed', 'sad'], { client: 'nervous', pros: 'smug' }],
+  bucketStoryFix: [['embarrassed', 'nervous'], { client: 'embarrassed', pros: 'smug' }]
+};
+// Individual lines whose tone differs from their moment's usual emotion.
+const LINE_EMO = {
+  'I bristle at the accusation, Your Honor.': 'angry',
+  'Someone is trying to dig up dirt on me.': 'angry',
+  'I feel like I am being screwed over, Your Honor.': 'angry',
+  'I have been gritting my teeth through this whole thing.': 'angry',
+  'Please be gentle. I chip easily.': 'scared',
+  'I have nothing to hide. You can see right through me.': 'confident',
+  'I have been solid as a rock my whole life.': 'confident',
+  'I am sharper than people think. I would not be this careless.': 'confident',
+  'My record is spotless.': 'confident',
+  'I made that up.': 'embarrassed',
+  'Fine. It did not pan out the way I said.': 'angry',
+  'Withdrawn.': 'embarrassed'
+};
+// A dialogue line from a speaker: text chosen with their own tags, plus emotion and listener reactions.
+function say(who, moment) {
+  const text = pickLine(moment, tagsOf(who));
+  const [emos, react] = MOMENT_EMO[moment];
+  return [who, text, LINE_EMO[text] || rand(emos), react];
+}
 
 // Rare overt puns, each keyed to the tags of whoever it is about. At most one per case.
 const has = (who, tag) => tagsOf(who).includes(tag);
 const RARE = [
   { site: 'intro', chance: 0.05, when: () => has('bucket', 'handle'), lines: () => [
-    ['judge', 'Ms. Bucket, I trust you have a handle on this case.'],
-    ['bucket', 'I have one handle, Your Honor. It is on top.'],
-    ['judge', 'That is not what I meant.']] },
+    ['judge', 'Ms. Bucket, I trust you have a handle on this case.', 'stern'],
+    ['bucket', 'I have one handle, Your Honor. It is on top.', 'neutral'],
+    ['judge', 'That is not what I meant.', 'stern']] },
   { site: 'intro', chance: 0.25, when: () => has('client', 'breakable'), lines: c => [
-    ['pros', `The prosecution expects ${c.client.name} to crack under questioning.`],
-    ['bucket', 'Objection. That is a threat.'],
-    ['judge', 'Sustained.']] },
+    ['pros', `The prosecution expects ${c.client.name} to crack under questioning.`, 'smug'],
+    ['bucket', 'Objection. That is a threat.', 'angry'],
+    ['judge', 'Sustained.', 'stern']] },
   { site: 'intro', chance: 0.25, when: () => has('client', 'absorbs'), lines: c => [
-    ['pros', `Your Honor, ${c.client.name} has a history of soaking things up.`],
-    ['bucket', 'That is what sponges do, Mr. Spade.'],
-    ['judge', 'Continue.']] },
+    ['pros', `Your Honor, ${c.client.name} has a history of soaking things up.`, 'smug'],
+    ['bucket', 'That is what sponges do, Mr. Spade.', 'stern'],
+    ['judge', 'Continue.', 'stern']] },
   { site: 'intro', chance: 0.2, when: () => has('client', 'teeth'), lines: c => [
-    ['judge', `${c.client.name} will stop grinding their teeth in my courtroom.`],
-    ['client', 'It is involuntary, Your Honor.']] },
+    ['judge', `${c.client.name} will stop grinding their teeth in my courtroom.`, 'stern'],
+    ['client', 'It is involuntary, Your Honor.', 'embarrassed']] },
   { site: 'witnessIntro', chance: 0.8, when: c => [c.client.tool, c.witness.tool].sort().join() === 'kettle,pot', lines: () => [
-    ['pros', 'Your Honor, the defense will call this witness a liar. That would be the pot calling the kettle black.'],
-    ['judge', 'They are both stainless steel, Mr. Spade.'],
-    ['pros', 'Withdrawn.']] },
+    ['pros', 'Your Honor, the defense will call this witness a liar. That would be the pot calling the kettle black.', 'smug'],
+    ['judge', 'They are both stainless steel, Mr. Spade.', 'stern'],
+    ['pros', 'Withdrawn.', 'embarrassed']] },
   { site: 'objFail', chance: 0.06, when: () => has('bucket', 'holds'), lines: () => [
-    ['pros', 'The defense\'s argument does not hold water, Your Honor.'],
-    ['bucket', 'I am familiar with holding water, Mr. Spade.'],
-    ['judge', 'Move on, both of you.']] },
+    ['pros', 'The defense\'s argument does not hold water, Your Honor.', 'smug'],
+    ['bucket', 'I am familiar with holding water, Mr. Spade.', 'stern'],
+    ['judge', 'Move on, both of you.', 'angry']] },
   { site: 'objFail', chance: 0.25, when: () => has('client', 'pointed'), lines: () => [
-    ['judge', 'Ms. Bucket, please get to the point.'],
-    ['client', 'I am right here.'],
-    ['judge', 'Not you.']] },
+    ['judge', 'Ms. Bucket, please get to the point.', 'stern'],
+    ['client', 'I am right here.', 'surprised'],
+    ['judge', 'Not you.', 'stern']] },
   { site: 'caught', chance: 0.3, when: () => has('witness', 'sweeps'), lines: () => [
-    ['bucket', 'The witness tried to sweep that under the rug.'],
-    ['witness', 'Old habit.'],
-    ['judge', 'Strike it from the record.']] },
+    ['bucket', 'The witness tried to sweep that under the rug.', 'confident'],
+    ['witness', 'Old habit.', 'embarrassed'],
+    ['judge', 'Strike it from the record.', 'stern']] },
   { site: 'liesWin', chance: 0.12, when: () => has('pros', 'digs'), lines: () => [
-    ['pros', 'Your Honor, if I may, the defense has simply been lucky.'],
-    ['judge', 'Mr. Spade, you are digging yourself a hole.'],
-    ['pros', 'Your Honor, I am a shovel.'],
-    ['judge', 'I am aware.']] },
+    ['pros', 'Your Honor, if I may, the defense has simply been lucky.', 'smug'],
+    ['judge', 'Mr. Spade, you are digging yourself a hole.', 'stern'],
+    ['pros', 'Your Honor, I am a shovel.', 'neutral'],
+    ['judge', 'I am aware.', 'stern']] },
   { site: 'storyFail', chance: 0.4, when: () => has('client', 'holes'), lines: () => [
-    ['pros', 'Your Honor, this story is full of holes.'],
-    ['client', 'Please do not bring that up.'],
-    ['judge', 'Mr. Spade.']] },
+    ['pros', 'Your Honor, this story is full of holes.', 'smug'],
+    ['client', 'Please do not bring that up.', 'embarrassed'],
+    ['judge', 'Mr. Spade.', 'stern']] },
   { site: 'storyFail', chance: 0.3, when: () => has('client', 'flips'), lines: c => [
-    ['pros', `${c.client.name} has flipped their story, Your Honor.`],
-    ['client', 'It is the only thing I know how to do.'],
-    ['judge', 'Not in my courtroom.']] }
+    ['pros', `${c.client.name} has flipped their story, Your Honor.`, 'smug'],
+    ['client', 'It is the only thing I know how to do.', 'sad'],
+    ['judge', 'Not in my courtroom.', 'stern']] }
 ];
 // Returns an exchange for this moment, or null. Uses up the case's one overt pun.
 function rarePun(site) {
@@ -693,7 +921,7 @@ const SPEAKERS = { judge: ['Judge Iron', 'char-judge'], pros: ['Prosecutor Spade
 function who(k) {
   const c = game.case;
   if (SPEAKERS[k]) return SPEAKERS[k];
-  if (k === 'client') return [c.client.label, c.mode === 'story' ? 'char-witness' : 'char-client'];
+  if (k === 'client') return [c.client.label, 'char-client'];
   if (k === 'witness') return [c.witness.label, 'char-witness'];
   return [k, null];
 }
@@ -704,11 +932,15 @@ function talk(lines, done) {
   box.style.display = 'block';
   const show = () => {
     if (i >= lines.length) {
-      box.style.display = 'none'; box.onclick = null; setTalking(null);
+      box.style.display = 'none'; box.onclick = null; game.faces = {}; renderScene(); setTalking(null);
       if (panel) panel.classList.remove('locked');
       if (done) done(); return;
     }
-    const [k, text] = lines[i]; const [name, id] = who(k);
+    // line = [speaker, text, emotion, { listener: emotion }]
+    const [k, text, emo, react] = lines[i]; const [name, id] = who(k);
+    const faces = { [k]: makeExpr(emo) };
+    for (const [r, e] of Object.entries(react || {})) if (r !== k) faces[r] = makeExpr(e);
+    game.faces = faces; renderScene();
     box.innerHTML = `<div class="who">${esc(name)}</div><div class="say">${esc(text)}</div><div class="next">tap to continue ▸</div>`;
     setTalking(id); i++;
   };
@@ -729,7 +961,7 @@ function patienceHtml() {
 }
 
 function startCase() {
-  game.caseNo++; game.patience = 3; game.sel = null; game.selEv = null; game.struck = new Set(); game.answers = {}; game.wrongQ = null; game.punUsed = false;
+  game.caseNo++; game.patience = 3; game.sel = null; game.selEv = null; game.struck = new Set(); game.answers = {}; game.wrongQ = null; game.punUsed = false; game.faces = {};
   const c = game.case = genCase(game.caseNo);
   renderScene(); stats();
   main.innerHTML = `
@@ -739,18 +971,18 @@ function startCase() {
   renderPanel();
   const intro = [
     say('judge', 'judgeOpen'),
-    ['pros', `The defendant, ${c.client.label}, is accused of the following: ${c.charge.replace(/\.$/, '')}. ${pickLine('prosCharge', CAST_TAGS.pros)}`],
+    ['pros', `The defendant, ${c.client.label}, is accused of the following: ${c.charge.replace(/\.$/, '')}. ${pickLine('prosCharge', CAST_TAGS.pros)}`, rand(['smug', 'stern']), { client: 'nervous' }],
     say('client', 'clientOpen'),
     say('bucket', 'bucketReady')
   ];
   intro.push(...(rarePun('intro') || []));
   if (c.mode === 'lies') {
-    intro.push(['pros', `The prosecution calls ${c.witness.label} to the stand.`]);
+    intro.push(['pros', `The prosecution calls ${c.witness.label} to the stand.`, 'neutral', { witness: 'confident' }]);
     intro.push(say('witness', 'witnessOpen'));
     intro.push(...(rarePun('witnessIntro') || []));
     intro.push(say('bucket', 'bucketLies'));
   } else {
-    intro.push(['judge', `The defense may now present ${c.client.name}'s side of the story.`]);
+    intro.push(['judge', `The defense may now present ${c.client.name}'s side of the story.`, 'neutral', { client: 'nervous' }]);
     intro.push(say('bucket', 'bucketStory'));
   }
   talk(intro);
@@ -806,7 +1038,7 @@ function objectLie() {
     game.struck.add(game.sel); game.sel = null; game.selEv = null;
     const done = game.struck.size >= c.nLies;
     const lines = [
-      ['bucket', `Objection! ${why[s.dim]}`],
+      ['bucket', `Objection! ${why[s.dim]}`, 'confident', { witness: 'scared' }],
       say('judge', 'sustained'),
       say('witness', 'witnessCaught'),
       ...(rarePun('caught') || [])
@@ -819,16 +1051,16 @@ function objectLie() {
       talk(lines, () => verdict(true));
     } else talk(lines);
   } else {
-    let lines = [['bucket', `Objection! Please look at the ${e.title.toLowerCase()}.`]];
+    let lines = [['bucket', `Objection! Please look at the ${e.title.toLowerCase()}.`, 'confident', { witness: 'nervous' }]];
     if (!s.lie && e.id === s.dim) {
       lines.push(say('pros', 'prosAgrees'));
-      lines.push(['judge', 'Overruled.']);
+      lines.push(['judge', 'Overruled.', 'stern', { bucket: 'embarrassed', pros: 'smug' }]);
     } else if (e.id === 'decoy') {
-      lines.push(['judge', `Overruled. That is a ${e.title.toLowerCase()}. It is not relevant.`]);
+      lines.push(['judge', `Overruled. That is a ${e.title.toLowerCase()}. It is not relevant.`, 'stern', { bucket: 'embarrassed', pros: 'smug' }]);
     } else if (!s.lie) {
-      lines.push(['judge', 'Overruled. Nothing is wrong with that statement.']);
+      lines.push(['judge', 'Overruled. Nothing is wrong with that statement.', 'stern', { bucket: 'embarrassed', pros: 'smug' }]);
     } else {
-      lines.push(['judge', 'Overruled. That evidence has nothing to do with that statement.']);
+      lines.push(['judge', 'Overruled. That evidence has nothing to do with that statement.', 'stern', { bucket: 'embarrassed', pros: 'smug' }]);
     }
     lines.push(...(rarePun('objFail') || [say('bucket', 'bucketRetreat')]));
     penalize(lines);
@@ -842,8 +1074,8 @@ function tellStory() {
   const story = c.questions.map((q, i) => q.opts[game.answers[i]].text).join(' ');
   if (wrongIdx === -1) {
     talk([
-      ['client', story],
-      ['pros', 'The prosecution has no objections.'],
+      ['client', story, 'nervous', {}],
+      ['pros', 'The prosecution has no objections.', 'sad', { client: 'relieved' }],
       say('judge', 'judgeStoryWin')
     ], () => verdict(true));
     return;
@@ -855,9 +1087,9 @@ function tellStory() {
   else if (q.dim === 'residue') why = `The lab found ${c.Rc.sub} on ${cn}. ${cap(ans.key)} would not do that.`;
   else why = c.person ? `${cn} wrote "You are my favorite" on a birthday card to ${c.target}. That does not match.` : `${cn}'s own diary says the ${c.S.name} is too spooky. That does not match.`;
   penalize([
-    ['client', story],
-    ['pros', `Objection! ${why}`],
-    ['judge', 'Sustained. The defense may try again.'],
+    ['client', story, 'nervous', {}],
+    ['pros', `Objection! ${why}`, 'smug', { client: 'scared', bucket: 'nervous' }],
+    ['judge', 'Sustained. The defense may try again.', 'stern', { client: 'sad' }],
     ...(rarePun('storyFail') || [say('bucket', 'bucketStoryFix')])
   ]);
 }
@@ -876,6 +1108,11 @@ function verdict(win) {
   const c = game.case;
   if (win) game.won++; else game.lost++;
   stats();
+  game.faces = win
+    ? { client: 'happy', bucket: 'happy', pros: 'angry', witness: 'embarrassed' }
+    : { client: 'sad', bucket: 'sad', pros: 'smug', witness: 'smug' };
+  for (const k in game.faces) game.faces[k] = makeExpr(game.faces[k]);
+  renderScene();
   const ov = document.getElementById('overlay'); const card = document.getElementById('overlayCard');
   card.innerHTML = win
     ? `<h2 class="notguilty">NOT GUILTY</h2><p>${esc(c.client.label)} is free to go. Please return to your drawer.</p><button class="big" id="nextCase">Next case</button>`
