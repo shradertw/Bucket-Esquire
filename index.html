@@ -677,7 +677,11 @@ function makeChar(exclude) {
   for (const [part, opts] of Object.entries(PERS[pers].rest)) feat[part] = rand(opts);
   return { tool, variant, name, pers, label: `${name} the ${label}`, kind: label.toLowerCase(), feat };
 }
-const someone = (...avoid) => { let x; do { x = `${rand(NAMES)} the ${rand(TARGETS)}`; } while (avoid.includes(x)); return x; };
+// A side character whose first name differs from everyone passed in (full names or first names).
+const someone = (...avoid) => {
+  const taken = new Set(avoid.filter(Boolean).map(a => a.split(' ')[0]));
+  let x; do { x = `${rand(NAMES)} the ${rand(TARGETS)}`; } while (taken.has(x.split(' ')[0])); return x;
+};
 const ITEMS_OK = ['an umbrella', 'a pie', 'a laundry basket', 'a bag of birdseed', 'a library book', 'a potted fern', 'a jar of pickles'];
 const ITEMS_BAD = ['a crowbar', 'a ski mask', 'a can of spray paint', 'a big empty sack', 'a pair of bolt cutters'];
 
@@ -717,19 +721,45 @@ const DIMS = {
   motive: c => {
     const cn = c.client.name, { S, target, person } = c;
     if (person) {
-      const ev = rand([
-        { title: 'Birthday Card', text: `From ${cn} to ${target}: "You are my favorite. Happy birthday." There is a small drawn heart.`, detail: `${cn} told ${target} "You are my favorite"` },
-        { title: 'Thank-You Note', text: `From ${cn} to ${target}: "Thank you for helping me move. You are the best."`, detail: `${cn} calling ${target} "the best"` },
-        { title: 'County Fair Photo', text: `${cn} and ${target} at the county fair, sharing a funnel cake.`, detail: `${cn} and ${target} sharing a funnel cake at the fair` }
-      ]);
-      return { ev, story: true,
-        stmt: { lie: `Everyone knows ${cn} cannot stand ${target}.`, truth: `${cn} and ${target} seem like good pals, honestly.` },
-        why: `The ${ev.title.toLowerCase()} shows ${ev.detail}. You do not do that with someone you cannot stand.`,
+      // c.rel is the true relationship: 'friends', 'annoyed', or 'strangers'. Evidence, testimony, and answers all follow it.
+      const rel = c.rel;
+      const ev = rand({
+        friends: [
+          { title: 'Birthday Card', text: `From ${cn} to ${target}: "You are my favorite. Happy birthday." There is a small drawn heart.`, detail: `${cn} told ${target} "You are my favorite"` },
+          { title: 'Thank-You Note', text: `From ${cn} to ${target}: "Thank you for helping me move. You are the best."`, detail: `${cn} calling ${target} "the best"` },
+          { title: 'County Fair Photo', text: `${cn} and ${target} at the county fair, sharing a funnel cake.`, detail: `${cn} and ${target} sharing a funnel cake at the fair` }
+        ],
+        annoyed: [
+          { title: 'Diary Page', text: `From ${cn}'s diary: "${target} hummed the same song for three hours today. Very annoying. I just wore earmuffs."`, detail: `${cn} finds ${target} annoying, and handles it by wearing earmuffs` },
+          { title: 'Complaint Letter', text: `From ${cn} to the homeowners' association: "${target} keeps borrowing my things. It is annoying. Please send a polite reminder."`, detail: `${cn} finds ${target} annoying, and asked for a polite reminder` },
+          { title: 'Group Chat', text: `${cn}: "${target} is annoying, but I would never do anything about it."`, detail: `${cn} finds ${target} annoying, but would never do anything about it` }
+        ],
+        strangers: [
+          { title: 'Email to a Neighbor', text: `From ${cn}, sent the day before: "Could you introduce me to ${target} sometime? We have never met."`, detail: `${cn} asking to be introduced to ${target} the day before. They have never met` },
+          { title: 'Cruise Itinerary', text: `${target} returned from a six-week cruise the morning of the incident. ${cn} moved into the neighborhood while ${target} was away.`, detail: `${target} was on a cruise the whole time ${cn} has lived here. They have never met` },
+          { title: 'Welcome Card', text: `To ${cn}, from the neighborhood, last week: "Welcome! You will meet ${target} once they are back from their cruise."`, detail: `${cn} had not met ${target} yet` }
+        ]
+      }[rel]);
+      const stmt = {
+        friends: { lie: `Everyone knows ${cn} cannot stand ${target}.`, truth: `${cn} and ${target} seem like good pals, honestly.` },
+        annoyed: { lie: `${cn} swore revenge on ${target}. I heard it.`, truth: `${cn} finds ${target} a little annoying. Most people do.` },
+        strangers: { lie: `${cn} and ${target} have been feuding for years.`, truth: `I do not think ${cn} and ${target} have ever met.` }
+      }[rel];
+      const point = {
+        friends: 'You do not do that with someone you cannot stand.',
+        annoyed: 'Annoyed, yes. Vengeful, no.',
+        strangers: 'You cannot feud with someone you have never met.'
+      }[rel];
+      return { ev, story: true, stmt,
+        why: `The ${ev.title.toLowerCase()} shows ${ev.detail}. ${point}`,
         q: `How do you feel about ${target}?`,
         opts: shuffle([
-          { text: 'We are close friends.', ok: true, say: rand([`${target} and I are close friends. I would never do that to them.`, `${target} is one of my closest friends. Ask anyone.`]) },
-          { text: 'I find them very annoying.', ok: false, say: `To be honest, I find ${target} very annoying.` },
-          { text: 'Who? Never met them.', ok: false, say: `And I have never even met ${target}.` }]),
+          { text: 'We are close friends.', ok: rel === 'friends',
+            say: rel === 'friends' ? rand([`${target} and I are close friends. I would never do that to them.`, `${target} is one of my closest friends. Ask anyone.`]) : `${target} and I are close friends.` },
+          { text: 'I find them very annoying.', ok: rel === 'annoyed',
+            say: rel === 'annoyed' ? rand([`Honestly, I find ${target} very annoying. But I would never do anything about it.`, `${target} annoys me. I just ignore them.`]) : `To be honest, I find ${target} very annoying.` },
+          { text: 'Who? Never met them.', ok: rel === 'strangers',
+            say: rel === 'strangers' ? rand([`I have never even met ${target}.`, `I do not know ${target}. We have never met.`]) : `And I have never even met ${target}.` }]),
         storyWhy: () => `The ${ev.title.toLowerCase()} shows ${ev.detail}. That does not match.` };
     }
     const ev = rand([
@@ -748,7 +778,7 @@ const DIMS = {
   },
   company: c => {
     const cn = c.client.name, { hour } = c;
-    const C = someone(c.target, c.neighbor), C2 = someone(c.target, c.neighbor, C);
+    const C = someone(c.target, c.neighbor, c.client.name, c.witness.name), C2 = someone(c.target, c.neighbor, c.client.name, c.witness.name, C);
     const ev = rand([
       { title: 'Group Photo', text: `${cn} and ${C} playing cards. Timestamp: ${hour}.`, detail: `${cn} playing cards with ${C} at ${hour}` },
       { title: 'Text Message', text: `${C} to ${cn}, sent the next day: "Thanks for keeping me company yesterday at ${hour}. Let's do it again soon."`, detail: `${C} thanking ${cn} for keeping them company at ${hour}` },
@@ -814,11 +844,12 @@ function genCase(n) {
   const [Rs, Rc, Ro] = shuffle(RESIDUES);
   const hour = rand(HOURS);
   const person = Math.random() < 0.5;
-  const target = person ? someone() : null;
+  const target = person ? someone(client.name, witness.name) : null;
   const charge = person ? `${client.label} ${chargeVerb(client.tool, true)} ${target}.` : `${client.label} ${chargeVerb(client.tool, false)} in the ${S.name}.`;
   const mode = Math.random() < 0.5 ? 'lies' : 'story';
   const c = { n, client, witness, S, P, O, Rs, Rc, Ro, hour, person, target, charge, mode };
-  c.neighbor = someone(target);
+  c.neighbor = someone(target, client.name, witness.name);
+  c.rel = person ? rand(['friends', 'annoyed', 'strangers']) : null;
 
   // Case size varies: testimony uses 3-5 facts, story asks 3-4 questions.
   const pool = Object.keys(DIMS).filter(d => mode === 'lies' || d !== 'prints');
