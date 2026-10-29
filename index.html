@@ -175,12 +175,6 @@ const RESIDUES = [
   { sub: 'soap suds', act: 'washing the dishes' }
 ];
 const HOURS = ['7:15 PM','9:40 AM','noon','midnight','3:30 PM','6:05 AM','8:45 PM','11:20 AM'];
-const DECOYS = [
-  { title: 'Coupon', text: '10% off grout. Expired last March.' },
-  { title: 'Grocery List', text: 'Eggs, milk, AA batteries, paper towels.' },
-  { title: 'Photo of a Cloud', text: 'A photograph of a cloud. Undated.' },
-  { title: 'Bus Schedule', text: 'Route 14. Weekdays only.' }
-];
 
 /* ---------- character drawing ---------- */
 const HAIRC = ['#3b2a1e','#7a4a22','#d9a441','#c94f2b','#222222','#9a9a9a','#e8e8e8','#5b3fa0'];
@@ -565,6 +559,100 @@ function setTalking(id) {
   const el = document.getElementById(id); if (el) el.classList.add('talking');
 }
 
+/* ---------- personalities ---------- */
+// Clients and witnesses each get one. It sets their own lines for key moments, a voice filter
+// applied to everything else they say, a resting face, and how their reactions lean.
+const chance = p => Math.random() < p;
+const endWith = (s, mark, p) => s.replace(/\.(?=\s|$)/g, () => chance(p) ? mark : '.');
+const contract = s => s
+  .replace(/\bI am\b/g, "I'm").replace(/\bdid not\b/g, "didn't").replace(/\bdo not\b/g, "don't").replace(/\bDo not\b/g, "Don't")
+  .replace(/\bdoes not\b/g, "doesn't").replace(/\bis not\b/g, "isn't").replace(/\bwas not\b/g, "wasn't")
+  .replace(/\bwould not\b/g, "wouldn't").replace(/\bcould not\b/g, "couldn't").replace(/\bcannot\b/g, "can't")
+  .replace(/\bI will\b/g, "I'll").replace(/\bI would\b/g, "I'd").replace(/\bI have been\b/g, "I've been")
+  .replace(/\bIt is (?=\w)/g, "It's ").replace(/\bit is (?=\w)/g, "it's ").replace(/\bThat is (?=\w)/g, "That's ")
+  .replace(/\bthat is (?=\w)/g, "that's ").replace(/\bWe are\b/g, "We're").replace(/\bThey are\b/g, "They're").replace(/\bthey are\b/g, "they're");
+const PERS = {
+  dramatic: {
+    voice: s => { s = contract(s.replace(/\b(not|never|innocent|everything|nothing)\b/, w => w.toUpperCase())); s = endWith(s, '!', 0.9); return chance(0.15) ? `${rand(['Oh!', 'Oh, my!', 'Listen!'])} ${s}` : s; },
+    rest: { brows: ['raised', 'arched'], eyes: ['wide', 'lashes', 'dots'] },
+    shift: { nervous: ['scared'], embarrassed: ['scared', 'embarrassed'], neutral: ['surprised'], sad: ['sad'], surprised: ['scared', 'surprised'] },
+    lines: {
+      clientOpen: ["I'm INNOCENT! This is a travesty!", "I didn't do it! I would NEVER!", 'This is the worst day of my entire life!'],
+      witnessOpen: ['I saw EVERYTHING! It was shocking!', 'I will never forget what I saw that day!'],
+      witnessCaught: ['Oh no. Oh NO. I made a terrible mistake!', "I'm ruined! I may have exaggerated!"]
+    }
+  },
+  hothead: {
+    voice: s => { s = endWith(contract(s), '!', 0.6); return chance(0.15) ? `${rand(['Listen.', 'Oh, come ON.', 'Ugh.'])} ${s}` : s; },
+    rest: { brows: ['angry', 'thick'], mouth: ['flat', 'frown'] },
+    shift: { nervous: ['angry', 'nervous'], embarrassed: ['angry'], sad: ['angry', 'sad'], neutral: ['stern'], scared: ['angry', 'scared'] },
+    lines: {
+      clientOpen: ["I didn't do it, and I'm sick of being asked!", "This is ridiculous. I'm innocent!", 'Who is spreading this nonsense about me?'],
+      witnessOpen: ["I saw it, and I'm not happy about it!", "I know what I saw. Don't question me."],
+      witnessCaught: ['Fine! Maybe I got that part wrong!', 'Okay, okay! I made that up! Happy now?']
+    }
+  },
+  timid: {
+    voice: s => {
+      s = contract(s);
+      if (/^I\b/.test(s) && chance(0.5)) s = s.replace(/^I\b/, 'I-I'); else if (chance(0.2)) s = `Um. ${s}`;
+      s = endWith(s, '...', 0.45);
+      return chance(0.1) ? `${s} Sorry.` : s;
+    },
+    rest: { brows: ['worried'], eyes: ['glance', 'dots', 'beady'], mouth: ['tiny', 'wobbly', 'flat'] },
+    shift: { confident: ['nervous'], neutral: ['nervous'], angry: ['scared'], smug: ['nervous'], stern: ['nervous'], happy: ['relieved'] },
+    lines: {
+      clientOpen: ["I-I didn't do it... I promise.", "Um. I'm innocent. I think. I mean, I am.", 'Please... I just want to go home.'],
+      witnessOpen: ['I... I think I saw what happened?', 'Um. I saw some of it. Most of it. Sorry.'],
+      witnessCaught: ['S-sorry... I think I got that wrong...', "Oh. Oh no. I'm so sorry."]
+    }
+  },
+  smug: {
+    voice: s => { s = contract(s); if (chance(0.15)) s = `${rand(['Please.', 'Honestly.', 'Well.'])} ${s}`; return chance(0.12) ? s.replace(/\.$/, rand([', obviously.', ', naturally.'])) : s; },
+    rest: { brows: ['skeptical'], eyes: ['narrow', 'happy'], mouth: ['smirk'] },
+    shift: { nervous: ['smug', 'nervous'], embarrassed: ['smug', 'embarrassed'], neutral: ['smug'], confident: ['smug'], sad: ['stern'] },
+    lines: {
+      clientOpen: ["Please. I'd never stoop that low.", "This is beneath me. Frankly, it's beneath all of us.", "I'm innocent. Obviously."],
+      witnessOpen: ['Luckily, I notice everything.', 'I saw it all. I have excellent eyesight.'],
+      witnessCaught: ['Hm. A minor detail. Hardly worth mentioning.', "Well. Nobody's perfect. I usually am, though."]
+    }
+  },
+  cheerful: {
+    voice: s => { s = endWith(contract(s), '!', 0.7); return chance(0.15) ? `${rand(['Oh!', 'Ooh!', 'Well!'])} ${s}` : s; },
+    rest: { eyes: ['happy', 'dots'], mouth: ['grin', 'smile', 'cat'] },
+    shift: { neutral: ['happy'], nervous: ['happy', 'nervous'], confident: ['happy'], sad: ['embarrassed', 'sad'], stern: ['happy'] },
+    lines: {
+      clientOpen: ["Hi! I didn't do it! Nice to meet everyone!", "I'm innocent! This courtroom is lovely, though!", "Hello! I'm sure this is all a big mix-up!"],
+      witnessOpen: ['Hi! I saw the whole thing! Happy to help!', 'Ooh, I love being a witness!'],
+      witnessCaught: ['Oops! My mistake!', 'Oh! Whoops! Never mind that one!']
+    }
+  },
+  deadpan: {
+    voice: s => s,
+    rest: { eyes: ['dots', 'beady'], mouth: ['flat', 'tiny'], brows: ['none', 'flat'] },
+    shift: { scared: ['neutral', 'nervous'], happy: ['neutral'], surprised: ['neutral'], sad: ['neutral', 'sad'], angry: ['stern'] },
+    lines: {}
+  },
+  weary: {
+    voice: s => { s = contract(s); if (chance(0.12)) s = `${rand(['Look.', 'Fine.', 'Ugh.'])} ${s}`; return chance(0.1) ? `${s} ${rand(['Can I go home now?', 'Whatever.', 'Are we done?'])}` : s; },
+    rest: { eyes: ['sleepy'], mouth: ['flat', 'frown'], brows: ['none', 'sad'] },
+    shift: { happy: ['relieved'], scared: ['nervous'], surprised: ['neutral'], confident: ['neutral'], angry: ['stern'] },
+    lines: {
+      clientOpen: ["I didn't do it. Can I go home now?", "I'm innocent. I'm also very tired.", "Let's just get this over with."],
+      witnessOpen: ['I saw it. Can we make this quick?', 'Yes, I was there. Unfortunately.'],
+      witnessCaught: ['Fine. I made it up. Can I sit down?', 'Sure. Whatever. I was wrong.']
+    }
+  }
+};
+const voice = (ch, s) => PERS[ch.pers].voice(s);
+// Clients and witnesses lean their reactions toward their personality.
+function shiftEmo(who, emo) {
+  const c = game.case;
+  if (!c || (who !== 'client' && who !== 'witness') || !c[who]) return emo;
+  const opts = PERS[c[who].pers].shift[emo || 'neutral'];
+  return opts ? rand(opts) : emo;
+}
+
 /* ---------- case generation ---------- */
 function makeChar(exclude) {
   const tool = rand(CLIENT_TOOLS.filter(t => t !== exclude));
@@ -573,7 +661,139 @@ function makeChar(exclude) {
   const name = rand(same.length ? same : NAMES);
   const nv = TOOLS[tool].variants ? TOOLS[tool].variants.length : 0;
   const variant = Math.floor(Math.random() * (nv + 1));
-  return { tool, variant, name, label: `${name} the ${label}`, kind: label.toLowerCase(), feat: randFeat() };
+  const pers = rand(Object.keys(PERS));
+  const feat = randFeat();
+  for (const [part, opts] of Object.entries(PERS[pers].rest)) feat[part] = rand(opts);
+  return { tool, variant, name, pers, label: `${name} the ${label}`, kind: label.toLowerCase(), feat };
+}
+const someone = (...avoid) => { let x; do { x = `${rand(NAMES)} the ${rand(TARGETS)}`; } while (avoid.includes(x)); return x; };
+const ITEMS_OK = ['an umbrella', 'a pie', 'a laundry basket', 'a bag of birdseed', 'a library book', 'a potted fern', 'a jar of pickles'];
+const ITEMS_BAD = ['a crowbar', 'a ski mask', 'a can of spray paint', 'a big empty sack', 'a pair of bolt cutters'];
+
+// Each dimension is one fact about what really happened, with:
+//  ev: an evidence card that proves it (one of several kinds),
+//  stmt: what a witness says if lying vs. telling the truth about it,
+//  why: Ms. Bucket's objection when the lie is caught with that card,
+//  q/opts/storyWhy: the story-mode question, its answers (said aloud), and the prosecution's objection to a wrong one.
+const DIMS = {
+  place: c => {
+    const cn = c.client.name, { P, S, O, hour } = c;
+    const ev = rand([
+      { title: 'Security Photo', text: `A blurry photo of ${cn} standing next to ${P.landmark}. Timestamp: ${hour}.`, detail: `${cn} by ${P.landmark} at ${hour}. That is in the ${P.name}` },
+      { title: "Neighbor's Note", text: `"I saw ${cn} by ${P.landmark} around ${hour}. They waved at me." Signed, ${c.neighbor}.`, detail: `${cn} by ${P.landmark} around ${hour}. That is in the ${P.name}` },
+      { title: 'Delivery Slip', text: `Package signed for by ${cn}, in the ${P.name}, at ${hour}.`, detail: `${cn} signing for a package in the ${P.name} at ${hour}` }
+    ]);
+    return { ev, story: true,
+      stmt: { lie: `I saw ${cn} in the ${S.name} at ${hour}. Clear as day.`, truth: `Around ${hour}, I think I saw ${cn} over by ${P.landmark}.` },
+      why: `The ${ev.title.toLowerCase()} shows ${ev.detail}. My client cannot be in two rooms at once.`,
+      q: `Where were you at ${hour}?`,
+      opts: shuffle([P, S, O]).map(r => ({ text: `In the ${r.name}.`, ok: r === P, key: r.name, say: `I was in the ${r.name} at ${hour}.` })),
+      storyWhy: a => `The ${ev.title.toLowerCase()} shows ${ev.detail}. Not the ${a.key}.` };
+  },
+  residue: c => {
+    const cn = c.client.name, { Rs, Rc, Ro, hour } = c;
+    const ev = rand([
+      { title: 'Lab Report', text: `Swab of ${cn}: traces of ${Rc.sub}. No other substances found.`, detail: `only ${Rc.sub} on ${cn}` },
+      { title: 'Dry Cleaning Slip', text: `Stain removed from ${cn}'s apron: ${Rc.sub}. No other stains.`, detail: `the only stain on ${cn} was ${Rc.sub}` }
+    ]);
+    return { ev, story: true,
+      stmt: { lie: `${cn} was covered in ${Rs.sub}. Same as the crime scene. Suspicious.`, truth: `${cn} had a little ${Rc.sub} on them. I did not think much of it.` },
+      why: `The ${ev.title.toLowerCase()} shows ${ev.detail}. There was no ${Rs.sub} at all.`,
+      q: 'What were you doing at the time?',
+      opts: shuffle([Rc, Rs, Ro]).map(r => ({ text: `${cap(r.act)}.`, ok: r === Rc, key: r.act, say: `At ${hour}, I was ${r.act}.` })),
+      storyWhy: a => `The ${ev.title.toLowerCase()} shows ${ev.detail}. ${cap(a.key)} would not leave ${Rc.sub} behind.` };
+  },
+  motive: c => {
+    const cn = c.client.name, { S, target, person } = c;
+    if (person) {
+      const ev = rand([
+        { title: 'Birthday Card', text: `From ${cn} to ${target}: "You are my favorite. Happy birthday." There is a small drawn heart.`, detail: `${cn} told ${target} "You are my favorite"` },
+        { title: 'Thank-You Note', text: `From ${cn} to ${target}: "Thank you for helping me move. You are the best."`, detail: `${cn} calling ${target} "the best"` },
+        { title: 'County Fair Photo', text: `${cn} and ${target} at the county fair, sharing a funnel cake.`, detail: `${cn} and ${target} sharing a funnel cake at the fair` }
+      ]);
+      return { ev, story: true,
+        stmt: { lie: `Everyone knows ${cn} cannot stand ${target}.`, truth: `${cn} and ${target} seem like good pals, honestly.` },
+        why: `The ${ev.title.toLowerCase()} shows ${ev.detail}. You do not do that with someone you cannot stand.`,
+        q: `How do you feel about ${target}?`,
+        opts: shuffle([
+          { text: 'We are close friends.', ok: true, say: rand([`${target} and I are close friends. I would never do that to them.`, `${target} is one of my closest friends. Ask anyone.`]) },
+          { text: 'I find them very annoying.', ok: false, say: `To be honest, I find ${target} very annoying.` },
+          { text: 'Who? Never met them.', ok: false, say: `And I have never even met ${target}.` }]),
+        storyWhy: () => `The ${ev.title.toLowerCase()} shows ${ev.detail}. That does not match.` };
+    }
+    const ev = rand([
+      { title: 'Diary Page', text: `From ${cn}'s diary: "The ${S.name} is too spooky. I never go in there."`, detail: `${cn} thinks the ${S.name} is too spooky to go in` },
+      { title: 'Letter to a Cousin', text: `${cn} wrote: "I never go in the ${S.name}. It gives me the creeps."`, detail: `${cn} never goes in the ${S.name}` }
+    ]);
+    return { ev, story: true,
+      stmt: { lie: `${cn} loves the ${S.name}. Goes in there all the time.`, truth: `${cn} does not like the ${S.name}. Says it is spooky.` },
+      why: `The ${ev.title.toLowerCase()} shows ${ev.detail}. My client does not go in there.`,
+      q: `How do you feel about the ${S.name}?`,
+      opts: shuffle([
+        { text: 'It is spooky. I stay out.', ok: true, say: rand([`I do not go in the ${S.name}. It is too spooky.`, `I stay out of the ${S.name}. It frightens me.`]) },
+        { text: 'It is my favorite room.', ok: false, say: `The ${S.name} is my favorite room, though.` },
+        { text: 'I go in there every day.', ok: false, say: `I do go in the ${S.name} every day, though.` }]),
+      storyWhy: () => `The ${ev.title.toLowerCase()} shows ${ev.detail}. That does not match.` };
+  },
+  company: c => {
+    const cn = c.client.name, { hour } = c;
+    const C = someone(c.target, c.neighbor), C2 = someone(c.target, c.neighbor, C);
+    const ev = rand([
+      { title: 'Group Photo', text: `${cn} and ${C} playing cards. Timestamp: ${hour}.`, detail: `${cn} playing cards with ${C} at ${hour}` },
+      { title: 'Text Message', text: `${C} to ${cn}, sent at ${hour}: "Thanks for keeping me company today."`, detail: `${C} thanking ${cn} for the company that day` },
+      { title: 'Game Night Score Sheet', text: `Dated that day. Players: ${cn} and ${C}. ${C} won.`, detail: `${cn} playing games with ${C} that day` }
+    ]);
+    return { ev, story: true,
+      stmt: { lie: `${cn} was all alone at the time. Nobody can vouch for them.`, truth: `I think ${cn} had company at the time. ${C}, maybe.` },
+      why: `The ${ev.title.toLowerCase()} shows ${ev.detail}. My client was not alone.`,
+      q: 'Who were you with?',
+      opts: shuffle([
+        { text: `${C}.`, ok: true, key: C, say: `${C} was with me the whole time.` },
+        { text: 'Nobody. I was alone.', ok: false, key: 'nobody', say: 'I was by myself the whole time.' },
+        { text: `${C2}.`, ok: false, key: C2, say: `${C2} was with me the whole time.` }]),
+      storyWhy: () => `The ${ev.title.toLowerCase()} shows ${ev.detail}. That does not match.` };
+  },
+  carried: c => {
+    const cn = c.client.name, { hour } = c;
+    const [I, I2] = shuffle(ITEMS_OK), Ibad = rand(ITEMS_BAD);
+    const ev = rand([
+      { title: 'Doorbell Camera', text: `Footage of ${cn} passing by at ${hour}, carrying ${I}.`, detail: `${cn} carrying ${I} at ${hour}` },
+      { title: 'Store Receipt', text: `${cn} bought ${I} at the corner store, just before ${hour}.`, detail: `${cn} buying ${I} just before ${hour}` }
+    ]);
+    return { ev, story: true,
+      stmt: { lie: `${cn} was carrying ${Ibad}. I saw it.`, truth: `${cn} had ${I} with them, I think.` },
+      why: `The ${ev.title.toLowerCase()} shows ${ev.detail}. Not ${Ibad}.`,
+      q: 'What did you have with you?',
+      opts: shuffle([I, I2, Ibad]).map(x => ({ text: `${cap(x)}.`, ok: x === I, key: x, say: `I had ${x} with me.` })),
+      storyWhy: a => `The ${ev.title.toLowerCase()} shows ${ev.detail}. Not ${a.key}.` };
+  },
+  prints: c => {
+    const cn = c.client.name, { S } = c;
+    const ev = rand([
+      { title: 'Fingerprint Report', text: `No prints from ${cn} anywhere on ${S.landmark}.`, detail: `no prints from ${cn} on ${S.landmark}` },
+      { title: 'Dust Test', text: `The dust on ${S.landmark} was undisturbed. Nobody had touched it in weeks.`, detail: `nobody had touched ${S.landmark} in weeks` }
+    ]);
+    return { ev, story: false,
+      stmt: { lie: `${cn}'s prints were all over ${S.landmark}.`, truth: `I never saw ${cn} touch anything in there, now that I think about it.` },
+      why: `The ${ev.title.toLowerCase()} shows ${ev.detail}.` };
+  }
+};
+const STORY_ORDER = ['place', 'residue', 'company', 'carried', 'motive'];
+
+// Decoys: about this case's scene, client, or time, but they prove nothing either way.
+function decoysFor(c) {
+  const cn = c.client.name, S = c.S;
+  return [
+    { title: 'Weather Report', text: `Light rain in the area around ${c.hour}. No storms.` },
+    { title: `Photo of the ${cap(S.name)}`, text: `Taken the next morning. ${cap(S.landmark)} is visible. Nothing looks out of place.` },
+    { title: 'Lost and Found Tag', text: `One sock, found in the ${S.name}. Owner unknown.` },
+    { title: 'Library Card', text: `Belongs to ${cn}. Two books overdue.` },
+    { title: 'Grocery Receipt', text: `${cn}'s groceries from last Tuesday: eggs, milk, AA batteries.` },
+    { title: 'Power Company Notice', text: `No outages reported in the area around ${c.hour}.` },
+    c.person
+      ? { title: `Statement from ${c.target}`, text: `"I just want this to be over with."` }
+      : { title: 'Cleaning Schedule', text: `The ${S.name} is cleaned every Thursday.` }
+  ];
 }
 
 function genCase(n) {
@@ -583,51 +803,30 @@ function genCase(n) {
   const [Rs, Rc, Ro] = shuffle(RESIDUES);
   const hour = rand(HOURS);
   const person = Math.random() < 0.5;
-  const target = person ? `${rand(NAMES)} the ${rand(TARGETS)}` : null;
+  const target = person ? someone() : null;
   const charge = person ? `${client.label} ${chargeVerb(client.tool, true)} ${target}.` : `${client.label} ${chargeVerb(client.tool, false)} in the ${S.name}.`;
   const mode = Math.random() < 0.5 ? 'lies' : 'story';
-  const cn = client.name;
+  const c = { n, client, witness, S, P, O, Rs, Rc, Ro, hour, person, target, charge, mode };
+  c.neighbor = someone(target);
 
-  const ev = {
-    place: { id: 'place', title: 'Security Photo', text: `A blurry photo of ${cn} standing next to ${P.landmark}. Timestamp: ${hour}.` },
-    residue: { id: 'residue', title: 'Lab Report', text: `Swab of ${cn}: traces of ${Rc.sub}. No other substances found.` },
-    motive: person
-      ? { id: 'motive', title: 'Birthday Card', text: `From ${cn} to ${target}: "You are my favorite. Happy birthday." There is a small drawn heart.` }
-      : { id: 'motive', title: 'Diary Page', text: `From ${cn}'s diary: "The ${S.name} is too spooky. I never go in there."` },
-    decoy: Object.assign({ id: 'decoy' }, rand(DECOYS))
-  };
-  const evidence = shuffle([ev.place, ev.residue, ev.motive, ev.decoy]);
-
-  const c = { n, client, witness, S, P, O, Rs, Rc, Ro, hour, person, target, charge, mode, ev, evidence };
+  // Case size varies: testimony uses 3-5 facts, story asks 3-4 questions.
+  const pool = Object.keys(DIMS).filter(d => mode === 'lies' || d !== 'prints');
+  const k = mode === 'lies' ? 3 + Math.floor(Math.random() * 3) : 3 + (chance(0.5) ? 1 : 0);
+  const dims = shuffle(pool).slice(0, k);
+  c.dims = {}; for (const d of dims) c.dims[d] = DIMS[d](c);
+  const decoys = shuffle(decoysFor(c)).slice(0, chance(0.5) ? 1 : 2).map((x, i) => ({ ...x, id: i ? 'decoy2' : 'decoy' }));
+  c.evidence = shuffle([...dims.map(d => ({ id: d, title: c.dims[d].ev.title, text: c.dims[d].ev.text })), ...decoys]);
+  c.ev = Object.fromEntries(c.evidence.map(e => [e.id, e]));
 
   if (mode === 'lies') {
-    const dims = shuffle(['place', 'residue', 'motive']);
-    const nLies = Math.random() < 0.5 ? 2 : 3;
-    const lieSet = new Set(dims.slice(0, nLies));
-    const say = {
-      place: [`I saw ${cn} in the ${S.name} at ${hour}. Clear as day.`, `Around ${hour}, I think I saw ${cn} over by ${P.landmark}.`],
-      residue: [`${cn} was covered in ${Rs.sub}. Same as the crime scene. Suspicious.`, `${cn} had a little ${Rc.sub} on them. I did not think much of it.`],
-      motive: person
-        ? [`Everyone knows ${cn} cannot stand ${target}.`, `${cn} and ${target} seem like good pals, honestly.`]
-        : [`${cn} loves the ${S.name}. Goes in there all the time.`, `${cn} does not like the ${S.name}. Says it is spooky.`]
-    };
-    const stmts = shuffle(dims).map(d => ({ dim: d, lie: lieSet.has(d), text: say[d][lieSet.has(d) ? 0 : 1] }));
-    stmts.unshift({ dim: 'fact', lie: false, text: `It all happened in the ${S.name}, at ${hour}.` });
-    stmts.push({ dim: 'fact2', lie: false, text: `Afterward, the ${S.name} was covered in ${Rs.sub}.` });
+    const nLies = k >= 4 ? 2 + (chance(0.5) ? 1 : 0) : 1 + (chance(0.5) ? 1 : 0);
+    const lieSet = new Set(shuffle(dims).slice(0, nLies));
+    const stmts = shuffle(dims).map(d => ({ dim: d, lie: lieSet.has(d), text: voice(witness, c.dims[d].stmt[lieSet.has(d) ? 'lie' : 'truth']) }));
+    stmts.unshift({ dim: 'fact', lie: false, text: voice(witness, `It all happened in the ${S.name}, at ${hour}.`) });
+    if (c.dims.residue) stmts.push({ dim: 'fact2', lie: false, text: voice(witness, `Afterward, the ${S.name} was covered in ${Rs.sub}.`) });
     c.stmts = stmts; c.nLies = nLies;
   } else {
-    c.questions = [
-      { dim: 'place', q: `Where were you at ${hour}?`, opts: shuffle([P, S, O]).map(r => ({ text: `In the ${r.name}.`, ok: r === P, key: r.name })) },
-      { dim: 'residue', q: `What were you doing at the time?`, opts: shuffle([Rc, Rs, Ro]).map(r => ({ text: `${cap(r.act)}.`, ok: r === Rc, key: r.act })) },
-      { dim: 'motive', q: person ? `How do you feel about ${target}?` : `How do you feel about the ${S.name}?`,
-        opts: shuffle(person
-          ? [{ text: 'We are close friends.', ok: true, say: rand([`${target} and I are close friends. I would never do that to them.`, `${target} is one of my closest friends. Ask anyone.`]) },
-             { text: 'I find them very annoying.', ok: false, say: `To be honest, I find ${target} very annoying.` },
-             { text: 'Who? Never met them.', ok: false, say: `And I have never even met ${target}.` }]
-          : [{ text: 'It is spooky. I stay out.', ok: true, say: rand([`I do not go in the ${S.name}. It is too spooky.`, `I stay out of the ${S.name}. It frightens me.`]) },
-             { text: 'It is my favorite room.', ok: false, say: `The ${S.name} is my favorite room, though.` },
-             { text: 'I go in there every day.', ok: false, say: `I do go in the ${S.name} every day, though.` }]) }
-    ];
+    c.questions = STORY_ORDER.filter(d => c.dims[d]).map(d => ({ dim: d, q: c.dims[d].q, opts: c.dims[d].opts }));
   }
   return c;
 }
@@ -858,9 +1057,16 @@ const LINE_EMO = {
 };
 // A dialogue line from a speaker: text chosen with their own tags, plus emotion and listener reactions.
 function say(who, moment) {
-  const text = pickLine(moment, tagsOf(who));
+  const base = pickLine(moment, tagsOf(who));
+  let text = base;
+  // Clients and witnesses sometimes use their personality's own line, otherwise their voice restyles the base line.
+  const ch = (who === 'client' || who === 'witness') ? game.case[who] : null;
+  if (ch) {
+    const own = PERS[ch.pers].lines[moment];
+    text = own && chance(0.4) ? rand(own) : voice(ch, base);
+  }
   const [emos, react] = MOMENT_EMO[moment];
-  return [who, text, LINE_EMO[text] || rand(emos), react];
+  return [who, text, LINE_EMO[base] || rand(emos), react];
 }
 
 // Rare overt puns, each keyed to the tags of whoever it is about. At most one per case.
@@ -916,7 +1122,10 @@ function rarePun(site) {
   if (game.punUsed) return null;
   const c = game.case;
   for (const r of shuffle(RARE.filter(r => r.site === site && r.when(c)))) {
-    if (Math.random() < r.chance) { game.punUsed = true; return r.lines(c); }
+    if (Math.random() < r.chance) {
+      game.punUsed = true;
+      return r.lines(c).map(l => (l[0] === 'client' || l[0] === 'witness') ? [l[0], voice(c[l[0]], l[1]), ...l.slice(2)] : l);
+    }
   }
   return null;
 }
@@ -942,8 +1151,8 @@ function talk(lines, done) {
     }
     // line = [speaker, text, emotion, { listener: emotion }]
     const [k, text, emo, react] = lines[i]; const [name, id] = who(k);
-    const faces = { [k]: makeExpr(emo) };
-    for (const [r, e] of Object.entries(react || {})) if (r !== k) faces[r] = makeExpr(e);
+    const faces = { [k]: makeExpr(shiftEmo(k, emo)) };
+    for (const [r, e] of Object.entries(react || {})) if (r !== k) faces[r] = makeExpr(shiftEmo(r, e));
     game.faces = faces; renderScene();
     box.innerHTML = `<div class="who">${esc(name)}</div><div class="say">${esc(text)}</div><div class="next">tap to continue ▸</div>`;
     setTalking(id); i++;
@@ -1030,19 +1239,11 @@ function renderPanel() {
 /* ---------- mode A: catch the lies ---------- */
 function objectLie() {
   const c = game.case; const s = c.stmts[game.sel]; const e = c.ev[game.selEv] || c.evidence.find(x => x.id === game.selEv);
-  const cn = c.client.name;
-  const why = {
-    place: `This security photo shows ${cn} next to ${c.P.landmark} at ${c.hour}. That is in the ${c.P.name}. My client cannot be in two rooms at once.`,
-    residue: `The lab found only ${c.Rc.sub} on ${cn}. There was no ${c.Rs.sub} at all.`,
-    motive: c.person
-      ? `${cn} gave ${c.target} a birthday card that says "You are my favorite." You do not write that to someone you cannot stand.`
-      : `${cn}'s diary says the ${c.S.name} is too spooky to go in. My client does not go in there.`
-  };
   if (s.lie && e.id === s.dim) {
     game.struck.add(game.sel); game.sel = null; game.selEv = null;
     const done = game.struck.size >= c.nLies;
     const lines = [
-      ['bucket', `Objection! ${why[s.dim]}`, 'confident', { witness: 'scared' }],
+      ['bucket', `Objection! ${c.dims[s.dim].why}`, 'confident', { witness: 'scared' }],
       say('judge', 'sustained'),
       say('witness', 'witnessCaught'),
       ...(rarePun('caught') || [])
@@ -1059,7 +1260,7 @@ function objectLie() {
     if (!s.lie && e.id === s.dim) {
       lines.push(say('pros', 'prosAgrees'));
       lines.push(['judge', 'Overruled.', 'stern', { bucket: 'embarrassed', pros: 'smug' }]);
-    } else if (e.id === 'decoy') {
+    } else if (e.id.startsWith('decoy')) {
       lines.push(['judge', `Overruled. That is a ${e.title.toLowerCase()}. It is not relevant.`, 'stern', { bucket: 'embarrassed', pros: 'smug' }]);
     } else if (!s.lie) {
       lines.push(['judge', 'Overruled. Nothing is wrong with that statement.', 'stern', { bucket: 'embarrassed', pros: 'smug' }]);
@@ -1072,20 +1273,27 @@ function objectLie() {
 }
 
 /* ---------- mode B: build the story ---------- */
-// Turns the three chosen answers into one spoken statement from the client.
+// Turns the chosen answers into one spoken statement, in the client's own voice.
 function storyText(c) {
-  const [pl, act, mot] = c.questions.map((q, i) => q.opts[game.answers[i]]);
-  const room = pl.key, doing = act.key, h = c.hour;
-  const opener = rand([
-    `At ${h}, I was in the ${room}, ${doing}.`,
-    `I was in the ${room} at ${h}. I was ${doing}.`,
-    `I was ${doing} in the ${room} at ${h}.`,
-    `I spent that time in the ${room}, ${doing}.`
-  ]);
-  return `${opener} ${mot.say}`;
+  const A = {}; c.questions.forEach((q, i) => { A[q.dim] = q.opts[game.answers[i]]; });
+  const h = c.hour, parts = [];
+  if (A.place && A.residue) {
+    const room = A.place.key, doing = A.residue.key;
+    parts.push(rand([
+      `At ${h}, I was in the ${room}, ${doing}.`,
+      `I was in the ${room} at ${h}. I was ${doing}.`,
+      `I was ${doing} in the ${room} at ${h}.`,
+      `I spent that time in the ${room}, ${doing}.`
+    ]));
+  } else {
+    if (A.place) parts.push(A.place.say);
+    if (A.residue) parts.push(A.residue.say);
+  }
+  for (const d of ['company', 'carried', 'motive']) if (A[d]) parts.push(A[d].say);
+  return voice(c.client, parts.join(' '));
 }
 function tellStory() {
-  const c = game.case; const cn = c.client.name;
+  const c = game.case;
   const wrongIdx = c.questions.findIndex((q, i) => !q.opts[game.answers[i]].ok);
   const story = storyText(c);
   if (wrongIdx === -1) {
@@ -1098,15 +1306,16 @@ function tellStory() {
   }
   const q = c.questions[wrongIdx]; const ans = q.opts[game.answers[wrongIdx]];
   game.wrongQ = wrongIdx; renderPanel();
-  let why;
-  if (q.dim === 'place') why = `The security photo puts ${cn} next to ${c.P.landmark} at ${c.hour}. That is not in the ${ans.key}.`;
-  else if (q.dim === 'residue') why = `The lab found ${c.Rc.sub} on ${cn}. ${cap(ans.key)} would not do that.`;
-  else why = c.person ? `${cn} wrote "You are my favorite" on a birthday card to ${c.target}. That does not match.` : `${cn}'s own diary says the ${c.S.name} is too spooky. That does not match.`;
+  const why = c.dims[q.dim].storyWhy(ans);
+  // On the last strike, the judge does not offer another try; the verdict follows directly.
+  const lastStrike = game.patience <= 1;
   penalize([
     ['client', story, 'nervous', {}],
     ['pros', `Objection! ${why}`, 'smug', { client: 'scared', bucket: 'nervous' }],
-    ['judge', 'Sustained. The defense may try again.', 'stern', { client: 'sad' }],
-    ...(rarePun('storyFail') || [say('bucket', 'bucketStoryFix')])
+    ...(lastStrike
+      ? [['judge', 'Sustained.', 'stern', { client: 'sad' }]]
+      : [['judge', 'Sustained. The defense may try again.', 'stern', { client: 'sad' }],
+         ...(rarePun('storyFail') || [say('bucket', 'bucketStoryFix')])])
   ]);
 }
 
