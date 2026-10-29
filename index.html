@@ -822,7 +822,6 @@ function genCase(n) {
     const nLies = k >= 4 ? 2 + (chance(0.5) ? 1 : 0) : 1 + (chance(0.5) ? 1 : 0);
     const lieSet = new Set(shuffle(dims).slice(0, nLies));
     const stmts = shuffle(dims).map(d => ({ dim: d, lie: lieSet.has(d), text: voice(witness, c.dims[d].stmt[lieSet.has(d) ? 'lie' : 'truth']) }));
-    stmts.unshift({ dim: 'fact', lie: false, text: voice(witness, `It all happened in the ${S.name}, at ${hour}.`) });
     if (c.dims.residue) stmts.push({ dim: 'fact2', lie: false, text: voice(witness, `Afterward, the ${S.name} was covered in ${Rs.sub}.`) });
     c.stmts = stmts; c.nLies = nLies;
   } else {
