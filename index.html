@@ -135,10 +135,10 @@ const RESIDUES = [
 ];
 const HOURS = ['7:15 PM','9:40 AM','noon','midnight','3:30 PM','6:05 AM','8:45 PM','11:20 AM'];
 const DECOYS = [
-  { title: 'Coupon', text: '10% off grout. Expired. Still nice to have.' },
-  { title: 'Grocery List', text: 'Eggs. More eggs. Something for the eggs.' },
-  { title: 'Photo of a Cloud', text: 'It looks a bit like a duck. Not related to anything.' },
-  { title: 'Bus Schedule', text: 'For a bus that does not come here.' }
+  { title: 'Coupon', text: '10% off grout. Expired last March.' },
+  { title: 'Grocery List', text: 'Eggs, milk, AA batteries, paper towels.' },
+  { title: 'Photo of a Cloud', text: 'A photograph of a cloud. Undated.' },
+  { title: 'Bus Schedule', text: 'Route 14. Weekdays only.' }
 ];
 
 /* ---------- character drawing ---------- */
@@ -322,10 +322,10 @@ function genCase(n) {
 
   const ev = {
     place: { id: 'place', title: 'Security Photo', text: `A blurry photo of ${cn} standing next to ${P.landmark}. Timestamp: ${hour}.` },
-    residue: { id: 'residue', title: 'Lab Report', text: `Swab of ${cn}: traces of ${Rc.sub}. Nothing else. Very clean otherwise.` },
+    residue: { id: 'residue', title: 'Lab Report', text: `Swab of ${cn}: traces of ${Rc.sub}. No other substances found.` },
     motive: person
       ? { id: 'motive', title: 'Birthday Card', text: `From ${cn} to ${target}: "You are my favorite. Happy birthday." There is a small drawn heart.` }
-      : { id: 'motive', title: 'Diary Page', text: `From ${cn}'s diary: "The ${S.name} is too spooky. I never go in there. Not even for snacks."` },
+      : { id: 'motive', title: 'Diary Page', text: `From ${cn}'s diary: "The ${S.name} is too spooky. I never go in there."` },
     decoy: Object.assign({ id: 'decoy' }, rand(DECOYS))
   };
   const evidence = shuffle([ev.place, ev.residue, ev.motive, ev.decoy]);
@@ -399,7 +399,7 @@ function talk(lines, done) {
 function titleScreen() {
   game.case = null; renderScene(); stats();
   main.innerHTML = `<div class="title-screen box">
-    <p>You are Ms. Bucket, attorney at law. Your clients are tools and household things. They are probably innocent. Prove it with evidence.</p>
+    <p>You are Ms. Bucket, attorney at law. Your clients are tools and household items. Defend them using the evidence.</p>
     <button class="big" id="start">Take the first case</button></div>`;
   document.getElementById('start').onclick = startCase;
 }
@@ -418,18 +418,18 @@ function startCase() {
     <div id="panel"></div>`;
   renderPanel();
   const intro = [
-    ['judge', rand(['Court is now in session. Please be seated. Or leaned. Whatever your shape allows.', 'Order in the court. Thank you. That was enough order.'])],
-    ['pros', `The defendant, ${c.client.label}, is accused of the following: ${c.charge.replace(/\.$/, '')}. The prosecution will dig up the truth. That is a shovel joke.`],
-    ['client', rand([`I did not do it. I am just a little ${c.client.kind}.`, 'Hello. I am very nervous. Sorry.', 'I would like to go home now. Please.'])],
-    ['bucket', rand(['The defense is ready, Your Honor. My client is innocent. I can tell. Mostly from the face.', 'Ready, Your Honor. I have a good feeling about this. A bucketful, even.'])]
+    ['judge', rand(['Court is now in session. Please be seated.', 'Order. This court is now in session.'])],
+    ['pros', `The defendant, ${c.client.label}, is accused of the following: ${c.charge.replace(/\.$/, '')}. The prosecution intends to prove it.`],
+    ['client', rand(['I did not do it.', 'I would like to go home.', 'I am innocent. I was hung on a hook most of that day.'])],
+    ['bucket', rand(['The defense is ready, Your Honor.', 'The defense is ready. My client is innocent, Your Honor.'])]
   ];
   if (c.mode === 'lies') {
     intro.push(['pros', `The prosecution calls ${c.witness.label} to the stand.`]);
-    intro.push(['witness', rand(['Hello. I saw everything. Probably.', 'I am happy to help. I like being looked at.', 'I will tell the truth. Most of it.'])]);
-    intro.push(['bucket', 'Some of this testimony will be true. Some of it will not. I just need to find the parts that leak.']);
+    intro.push(['witness', rand(['I saw what happened.', 'I will tell the court what I saw.', 'I was there. I saw everything.'])]);
+    intro.push(['bucket', 'Some of this testimony is false. The evidence will show which parts.']);
   } else {
     intro.push(['judge', `The defense may now present ${c.client.name}'s side of the story.`]);
-    intro.push(['bucket', 'We need a story that fits every piece of evidence. Let us be careful. And honest. Mostly careful.']);
+    intro.push(['bucket', 'Your story needs to match every piece of evidence. Answer carefully.']);
   }
   talk(intro);
 }
@@ -475,39 +475,39 @@ function objectLie() {
   const c = game.case; const s = c.stmts[game.sel]; const e = c.ev[game.selEv] || c.evidence.find(x => x.id === game.selEv);
   const cn = c.client.name;
   const why = {
-    place: `This security photo shows ${cn} next to ${c.P.landmark} at ${c.hour}. That is in the ${c.P.name}. My client cannot be in two rooms at once. My client is only a ${c.client.kind}.`,
-    residue: `The lab found only ${c.Rc.sub} on ${cn}. There was no ${c.Rs.sub} at all. Lab reports do not lie. They are too boring to lie.`,
+    place: `This security photo shows ${cn} next to ${c.P.landmark} at ${c.hour}. That is in the ${c.P.name}. My client cannot be in two rooms at once.`,
+    residue: `The lab found only ${c.Rc.sub} on ${cn}. There was no ${c.Rs.sub} at all.`,
     motive: c.person
-      ? `${cn} gave ${c.target} a birthday card that says "You are my favorite." You do not write that to someone you cannot stand. Usually.`
-      : `${cn}'s diary says the ${c.S.name} is too spooky to go in. My client is a scaredy-${c.client.kind}. It is documented.`
+      ? `${cn} gave ${c.target} a birthday card that says "You are my favorite." You do not write that to someone you cannot stand.`
+      : `${cn}'s diary says the ${c.S.name} is too spooky to go in. My client does not go in there.`
   };
   if (s.lie && e.id === s.dim) {
     game.struck.add(game.sel); game.sel = null; game.selEv = null;
     const done = game.struck.size >= c.nLies;
     const lines = [
       ['bucket', `Objection! ${why[s.dim]}`],
-      ['judge', rand(['Sustained. The witness will stop saying that, please.', 'Sustained. That statement is struck from the record. Into the bin.', 'Sustained. That one did not hold water.'])],
-      ['witness', rand(['Oh. Hm. I may have been thinking of someone else.', 'My mistake. Everything looks alike from inside the drawer.', 'Okay. Yes. I made that up. Sorry.'])]
+      ['judge', rand(['Sustained.', 'Sustained. That statement is struck from the record.', 'Sustained. The witness will be more careful.'])],
+      ['witness', rand(['I may have been thinking of someone else.', 'It was dark in the drawer.', 'I made that up.'])]
     ];
     renderPanel();
     if (done) {
-      lines.push(['pros', 'The prosecution has... no further questions. I am very annoyed about it.']);
-      lines.push(['judge', 'This testimony has more holes than a colander. I have reached a verdict.']);
+      lines.push(['pros', 'The prosecution has no further questions.']);
+      lines.push(['judge', 'The testimony is not reliable. I have reached a verdict.']);
       talk(lines, () => verdict(true));
     } else talk(lines);
   } else {
     let lines = [['bucket', `Objection! Please look at the ${e.title.toLowerCase()}.`]];
     if (!s.lie && e.id === s.dim) {
-      lines.push(['pros', 'That evidence agrees with the witness. Thank you for your help, defense.']);
-      lines.push(['judge', 'Overruled. Please read your own evidence, Ms. Bucket.']);
+      lines.push(['pros', 'That evidence agrees with the witness.']);
+      lines.push(['judge', 'Overruled.']);
     } else if (e.id === 'decoy') {
-      lines.push(['judge', `Overruled. That is a ${e.title.toLowerCase()}. I do not see how it is relevant. I am a little disappointed.`]);
+      lines.push(['judge', `Overruled. That is a ${e.title.toLowerCase()}. It is not relevant.`]);
     } else if (!s.lie) {
-      lines.push(['judge', 'Overruled. I do not see anything wrong with that statement.']);
+      lines.push(['judge', 'Overruled. Nothing is wrong with that statement.']);
     } else {
       lines.push(['judge', 'Overruled. That evidence has nothing to do with that statement.']);
     }
-    lines.push(['bucket', rand(['Understood. I will reflect on this. Quietly.', 'Noted. I am rinsing out my thoughts.', 'Right. Sorry. Carry on.'])]);
+    lines.push(['bucket', rand(['Understood, Your Honor.', 'My apologies, Your Honor.', 'Withdrawn.'])]);
     penalize(lines);
   }
 }
@@ -520,8 +520,8 @@ function tellStory() {
   if (wrongIdx === -1) {
     talk([
       ['client', story],
-      ['pros', 'The prosecution has no objections. I am very annoyed about it.'],
-      ['judge', 'The story fits the evidence. Snug as a lid. I have reached a verdict.']
+      ['pros', 'The prosecution has no objections.'],
+      ['judge', 'The story is consistent with the evidence. I have reached a verdict.']
     ], () => verdict(true));
     return;
   }
@@ -534,8 +534,8 @@ function tellStory() {
   penalize([
     ['client', story],
     ['pros', `Objection! ${why}`],
-    ['judge', 'Sustained. The defense will try again. Gently.'],
-    ['bucket', rand(['Understood. Let us adjust the story. Slightly.', 'Right. That part had a leak. I will patch it.'])]
+    ['judge', 'Sustained. The defense may try again.'],
+    ['bucket', rand(['Understood, Your Honor.', 'My client misspoke, Your Honor.'])]
   ]);
 }
 
@@ -543,7 +543,7 @@ function penalize(lines) {
   game.patience--;
   renderPanel();
   if (game.patience <= 0) {
-    lines.push(['judge', 'That is enough. My patience is all used up. Like a sponge. I have reached a verdict.']);
+    lines.push(['judge', 'That is enough. I have reached a verdict.']);
     talk(lines, () => verdict(false));
   } else talk(lines);
 }
@@ -555,8 +555,8 @@ function verdict(win) {
   stats();
   const ov = document.getElementById('overlay'); const card = document.getElementById('overlayCard');
   card.innerHTML = win
-    ? `<h2 class="notguilty">NOT GUILTY</h2><p>${esc(c.client.label)} is free to go. Back to the drawer, with dignity.</p><button class="big" id="nextCase">Next case</button>`
-    : `<h2 class="guilty">GUILTY</h2><p>${esc(c.client.label)} is sentenced to the top shelf. Where nobody can reach. For a while.</p><button class="big" id="nextCase">Next case</button>`;
+    ? `<h2 class="notguilty">NOT GUILTY</h2><p>${esc(c.client.label)} is free to go. Please return to your drawer.</p><button class="big" id="nextCase">Next case</button>`
+    : `<h2 class="guilty">GUILTY</h2><p>${esc(c.client.label)} is sentenced to six months on the top shelf.</p><button class="big" id="nextCase">Next case</button>`;
   ov.style.display = 'flex';
   document.getElementById('nextCase').onclick = () => { ov.style.display = 'none'; startCase(); };
 }
