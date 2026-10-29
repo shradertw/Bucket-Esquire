@@ -36,13 +36,21 @@
   .charge small { display: block; font-weight: 400; color: var(--muted); }
   .patience { font-size: 14px; color: var(--muted); margin-left: auto; }
   .patience b { color: var(--bad); letter-spacing: 2px; }
+  /* The dialog box floats over the lower part of the courtroom. Colors are set per speaker in talk(). */
+  .stage { position: relative; }
   #dialog {
-    margin: 8px 0; padding: 10px 12px; background: #2b2620; color: #fdf6e8;
-    border-radius: 10px; min-height: 92px; display: none; cursor: pointer;
+    position: absolute; left: 3%; right: 3%; top: 66%; z-index: 5;
+    padding: 9px 13px; background: #2b2620; color: #fdf6e8; border: 3px solid #6d6458;
+    border-radius: 12px; min-height: 64px; display: none; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .3);
   }
   #dialog .who { font-weight: 700; color: #ffd76a; font-size: 14px; }
-  #dialog .say { margin: 2px 0 6px; }
-  #dialog .next { font-size: 13px; color: #c9bfae; text-align: right; }
+  #dialog .say { margin: 2px 0 4px; }
+  #dialog .next { font-size: 12px; opacity: .7; text-align: right; }
+  @media (max-width: 560px) {
+    #dialog { top: 64%; padding: 6px 10px; font-size: 14px; min-height: 0; border-width: 2px; }
+    #dialog .who { font-size: 13px; }
+  }
   #panel { margin-top: 8px; }
   #panel.locked { opacity: .45; pointer-events: none; }
   .box { background: var(--panel); border: 2px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
@@ -96,7 +104,10 @@
     <h1>Bucket, Esquire</h1>
     <div class="stats" id="stats"></div>
   </header>
-  <svg id="scene" viewBox="0 0 400 230" role="img" aria-label="Courtroom"></svg>
+  <div class="stage">
+    <svg id="scene" viewBox="0 0 400 230" role="img" aria-label="Courtroom"></svg>
+    <div id="dialog"></div>
+  </div>
   <div id="main"></div>
 </div>
 <div id="overlay"><div class="card2" id="overlayCard"></div></div>
@@ -549,7 +560,7 @@ function renderScene() {
   s += place('char-pros', drawProsecutor(F.pros), 322, 66, 0.68);
   s += `<rect x="300" y="150" width="96" height="40" rx="3" fill="#7a4a2a"/>`;
   s += place('char-bucket', drawBucket(F.bucket), 8, 66, 0.72);
-  if (c && !story) s += place('char-client', drawTool(c.client, F.client), 84, 74, 0.62);
+  if (c && !story) s += place('char-client', drawTool(c.client, F.client), 86, 66, 0.6);
   s += `<rect x="4" y="150" width="140" height="40" rx="3" fill="#7a4a2a"/>`;
   scene.innerHTML = s;
 }
@@ -1137,6 +1148,23 @@ function who(k) {
   if (k === 'witness') return [c.witness.label, 'char-witness'];
   return [k, null];
 }
+// Dialog box colors per speaker. Clients and witnesses are derived from their body color.
+function shade(hex, t) { // t < 0 darkens toward black, t > 0 lightens toward white
+  const n = parseInt(hex.slice(1), 16), ch = [n >> 16, (n >> 8) & 255, n & 255];
+  return '#' + ch.map(v => Math.round(t < 0 ? v * (1 + t) : v + (255 - v) * t).toString(16).padStart(2, '0')).join('');
+}
+const CAST_THEME = {
+  bucket: { bg: '#1f3a5c', border: '#f2cf5b', name: '#f2cf5b', text: '#eaf2fb' },
+  pros:   { bg: '#2a2b2e', border: '#c0392b', name: '#ff6b57', text: '#ececec' },
+  judge:  { bg: '#4a4f56', border: '#aab2bb', name: '#e6e9ec', text: '#f4f5f6' }
+};
+function dialogTheme(k) {
+  if (CAST_THEME[k]) return CAST_THEME[k];
+  const ch = game.case && game.case[k];
+  if (!ch) return { bg: '#2b2620', border: '#6d6458', name: '#ffd76a', text: '#fdf6e8' };
+  const col = ch.feat.color;
+  return { bg: shade(col, -0.62), border: col, name: shade(col, 0.45), text: '#ffffff' };
+}
 function talk(lines, done) {
   const box = document.getElementById('dialog'); const panel = document.getElementById('panel');
   let i = 0;
@@ -1153,7 +1181,8 @@ function talk(lines, done) {
     const faces = { [k]: makeExpr(shiftEmo(k, emo)) };
     for (const [r, e] of Object.entries(react || {})) if (r !== k) faces[r] = makeExpr(shiftEmo(r, e));
     game.faces = faces; renderScene();
-    box.innerHTML = `<div class="who">${esc(name)}</div><div class="say">${esc(text)}</div><div class="next">tap to continue ▸</div>`;
+    const th = dialogTheme(k); box.style.background = th.bg; box.style.borderColor = th.border; box.style.color = th.text;
+    box.innerHTML = `<div class="who" style="color:${th.name}">${esc(name)}</div><div class="say">${esc(text)}</div><div class="next">tap to continue ▸</div>`;
     setTalking(id); i++;
   };
   box.onclick = show; show();
@@ -1178,7 +1207,6 @@ function startCase() {
   renderScene(); stats();
   main.innerHTML = `
     <div class="charge"><small>The charge</small>${esc(c.charge)}${c.person ? `<small>Scene: the ${esc(c.S.name)}, at ${esc(c.hour)}</small>` : `<small>Time: ${esc(c.hour)}</small>`}</div>
-    <div id="dialog"></div>
     <div id="panel"></div>`;
   renderPanel();
   const intro = [
