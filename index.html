@@ -678,7 +678,8 @@ function shiftEmo(who, emo) {
 
 /* ---------- case generation ---------- */
 function makeChar(exclude) {
-  const tool = rand(CLIENT_TOOLS.filter(t => t !== exclude));
+  const ex = [].concat(exclude || []);
+  const tool = rand(CLIENT_TOOLS.filter(t => !ex.includes(t)));
   const label = TOOLS[tool].label;
   const same = NAMES.filter(n => n[0] === label[0]);
   const name = rand(same.length ? same : NAMES);
@@ -698,44 +699,44 @@ const ITEMS_OK = ['an umbrella', 'a pie', 'a laundry basket', 'a bag of birdseed
 const ITEMS_BAD = ['a crowbar', 'a ski mask', 'a can of spray paint', 'a big empty sack', 'a pair of bolt cutters'];
 
 // Each dimension is one fact about what really happened, with:
-//  ev: an evidence card that proves it (one of several kinds),
+//  evs: the evidence cards that could prove it (one is dealt, sometimes plus a competing backup),
 //  stmt: what a witness says if lying vs. telling the truth about it,
-//  why: Ms. Bucket's objection when the lie is caught with that card,
-//  q/opts/storyWhy: the story-mode question, its answers (said aloud), and the prosecution's objection to a wrong one.
+//  point: how Ms. Bucket finishes her objection after describing the card she used,
+//  q/opts/storyPoint: the story-mode question, its answers (said aloud), and how the prosecution finishes an objection to a wrong one.
 const DIMS = {
   place: c => {
     const cn = c.client.name, { P, S, O, hour } = c;
-    const ev = rand([
-      { title: 'Security Photo', text: `A blurry photo of ${cn} standing next to ${P.landmark}. Timestamp: ${hour}.`, detail: `${cn} by ${P.landmark} at ${hour}. That is in the ${P.name}` },
+    const evs = ([
+      { title: 'Security Photo', text: `A photo of ${cn} standing next to ${P.landmark}. Timestamp: ${hour}.`, detail: `${cn} by ${P.landmark} at ${hour}. That is in the ${P.name}` },
       { title: "Neighbor's Note", text: `"I saw ${cn} by ${P.landmark} around ${hour}. They waved at me." Signed, ${c.neighbor}.`, detail: `${cn} by ${P.landmark} around ${hour}. That is in the ${P.name}` },
       { title: 'Delivery Slip', text: `Package signed for by ${cn}, in the ${P.name}, at ${hour}.`, detail: `${cn} signing for a package in the ${P.name} at ${hour}` }
     ]);
-    return { ev, story: true,
+    return { evs, story: true,
       stmt: { lie: `I saw ${cn} in the ${S.name} at ${hour}. Clear as day.`, truth: `Around ${hour}, I think I saw ${cn} over by ${P.landmark}.` },
-      why: `The ${ev.title.toLowerCase()} shows ${ev.detail}. My client cannot be in two rooms at once.`,
+      point: `My client cannot be in two rooms at once.`,
       q: `Where were you at ${hour}?`,
       opts: shuffle([P, S, O]).map(r => ({ text: `In the ${r.name}.`, ok: r === P, key: r.name, say: `I was in the ${r.name} at ${hour}.` })),
-      storyWhy: a => `The ${ev.title.toLowerCase()} shows ${ev.detail}. Not the ${a.key}.` };
+      storyPoint: a => `Not the ${a.key}.` };
   },
   residue: c => {
     const cn = c.client.name, { Rs, Rc, Ro, hour } = c;
-    const ev = rand([
+    const evs = ([
       { title: 'Lab Report', text: `Swab of ${cn}: traces of ${Rc.sub}. No other substances found.`, detail: `only ${Rc.sub} on ${cn}` },
       { title: 'Dry Cleaning Slip', text: `Stain removed from ${cn}'s apron: ${Rc.sub}. No other stains.`, detail: `the only stain on ${cn} was ${Rc.sub}` }
     ]);
-    return { ev, story: true,
+    return { evs, story: true,
       stmt: { lie: `${cn} was covered in ${Rs.sub}. Same as the crime scene. Suspicious.`, truth: `${cn} had a little ${Rc.sub} on them. I did not think much of it.` },
-      why: `The ${ev.title.toLowerCase()} shows ${ev.detail}. There was no ${Rs.sub} at all.`,
+      point: `There was no ${Rs.sub} at all.`,
       q: 'What were you doing at the time?',
       opts: shuffle([Rc, Rs, Ro]).map(r => ({ text: `${cap(r.act)}.`, ok: r === Rc, key: r.act, say: `At ${hour}, I was ${r.act}.` })),
-      storyWhy: a => `The ${ev.title.toLowerCase()} shows ${ev.detail}. ${cap(a.key)} would not leave ${Rc.sub} behind.` };
+      storyPoint: a => `${cap(a.key)} would not leave ${Rc.sub} behind.` };
   },
   motive: c => {
     const cn = c.client.name, { S, target, person } = c;
     if (person) {
       // c.rel is the true relationship: 'friends', 'annoyed', or 'strangers'. Evidence, testimony, and answers all follow it.
       const rel = c.rel;
-      const ev = rand({
+      const evs = ({
         friends: [
           { title: 'Birthday Card', text: `From ${cn} to ${target}: "You are my favorite. Happy birthday." There is a small drawn heart.`, detail: `${cn} told ${target} "You are my favorite"` },
           { title: 'Thank-You Note', text: `From ${cn} to ${target}: "Thank you for helping me move. You are the best."`, detail: `${cn} calling ${target} "the best"` },
@@ -762,8 +763,8 @@ const DIMS = {
         annoyed: 'Annoyed, yes. Vengeful, no.',
         strangers: 'You cannot feud with someone you have never met.'
       }[rel];
-      return { ev, story: true, stmt,
-        why: `The ${ev.title.toLowerCase()} shows ${ev.detail}. ${point}`,
+      return { evs, story: true, stmt,
+        point: `${point}`,
         q: `How do you feel about ${target}?`,
         opts: shuffle([
           { text: 'We are close friends.', ok: rel === 'friends',
@@ -772,11 +773,11 @@ const DIMS = {
             say: rel === 'annoyed' ? rand([`Honestly, I find ${target} very annoying. But I would never do anything about it.`, `${target} annoys me. I just ignore them.`]) : `To be honest, I find ${target} very annoying.` },
           { text: 'Who? Never met them.', ok: rel === 'strangers',
             say: rel === 'strangers' ? rand([`I have never even met ${target}.`, `I do not know ${target}. We have never met.`]) : `And I have never even met ${target}.` }]),
-        storyWhy: () => `The ${ev.title.toLowerCase()} shows ${ev.detail}. That does not match.` };
+        storyPoint: () => `That does not match.` };
     }
     // c.roomFeel is the client's true feeling about the room: 'spooky', 'favorite', or 'daily'.
     const feel = c.roomFeel;
-    const ev = rand({
+    const evs = ({
       spooky: [
         { title: 'Diary Page', text: `From ${cn}'s diary: "The ${S.name} is too spooky. I never go in there."`, detail: `${cn} thinks the ${S.name} is too spooky to go in` },
         { title: 'Letter to a Cousin', text: `${cn} wrote: "I never go in the ${S.name}. It gives me the creeps."`, detail: `${cn} never goes in the ${S.name}` }
@@ -800,8 +801,8 @@ const DIMS = {
       favorite: 'My client does not hate it there. My client loves it.',
       daily: 'My client is in there every day. That is not suspicious.'
     }[feel];
-    return { ev, story: true, stmt,
-      why: `The ${ev.title.toLowerCase()} shows ${ev.detail}. ${point}`,
+    return { evs, story: true, stmt,
+      point: `${point}`,
       q: `How do you feel about the ${S.name}?`,
       opts: shuffle([
         { text: 'It is spooky. I stay out.', ok: feel === 'spooky',
@@ -810,12 +811,12 @@ const DIMS = {
           say: feel === 'favorite' ? rand([`The ${S.name} is my favorite place. I would never mess it up.`, `I love the ${S.name}. It is my favorite place.`]) : `The ${S.name} is my favorite place, though.` },
         { text: 'I go in there every day.', ok: feel === 'daily',
           say: feel === 'daily' ? rand([`I go in the ${S.name} every day. It is part of my routine.`, `I am in the ${S.name} every day. There is a plant in there.`]) : `I do go in the ${S.name} every day, though.` }]),
-      storyWhy: () => `The ${ev.title.toLowerCase()} shows ${ev.detail}. That does not match.` };
+      storyPoint: () => `That does not match.` };
   },
   company: c => {
     const cn = c.client.name, { hour } = c;
     const C = someone(c.target, c.neighbor, c.client.label, c.witness.label), C2 = someone(c.target, c.neighbor, c.client.label, c.witness.label, C);
-    const ev = rand([
+    const evs = ([
       { title: 'Group Photo', text: `${cn} and ${C} playing cards. Timestamp: ${hour}.`, detail: `${cn} playing cards with ${C} at ${hour}` },
       { title: 'Text Message', text: `${C} to ${cn}, sent the next day: "Thanks for keeping me company yesterday at ${hour}. Let's do it again soon."`, detail: `${C} thanking ${cn} for keeping them company at ${hour}` },
       { title: 'Game Night Score Sheet', text: `Dated that day. Players: ${cn} and ${C}. ${C} won.`, detail: `${cn} playing games with ${C} that day` },
@@ -824,15 +825,15 @@ const DIMS = {
         (t => ({ title: "Mail Carrier's Statement", text: `"I saw ${cn} leaving the ${c.P.name} with ${C} around ${t}."`, detail: `${cn} leaving the ${c.P.name} with ${C} around ${t}` }))(shiftTime(hour, rand(GAP_MINS)))
       ])
     ]);
-    return { ev, story: true,
+    return { evs, story: true,
       stmt: { lie: `${cn} was all alone at the time. Nobody can vouch for them.`, truth: `I think ${cn} had company at the time. ${C}, maybe.` },
-      why: `The ${ev.title.toLowerCase()} shows ${ev.detail}. My client was not alone.`,
+      point: `My client was not alone.`,
       q: 'Who were you with?',
       opts: shuffle([
         { text: `${C}.`, ok: true, key: C, say: `${C} was with me the whole time.` },
         { text: 'Nobody. I was alone.', ok: false, key: 'nobody', say: 'I was by myself the whole time.' },
         { text: `${C2}.`, ok: false, key: C2, say: `${C2} was with me the whole time.` }]),
-      storyWhy: () => `The ${ev.title.toLowerCase()} shows ${ev.detail}. That does not match.` };
+      storyPoint: () => `That does not match.` };
   },
   carried: c => {
     const cn = c.client.name, { hour } = c;
@@ -845,23 +846,23 @@ const DIMS = {
       { title: 'Eyewitness Statement', text: `From ${E}: "I saw ${cn} leaving the ${P.name} with ${I} around ${after}."`, detail: `${cn} leaving the ${P.name} with ${I} around ${after}` }
     ];
     if (P.name === 'front yard') opts.push({ title: 'Doorbell Camera', text: `Footage of ${cn} in the front yard at ${hour}, carrying ${I}.`, detail: `${cn} in the front yard at ${hour}, carrying ${I}` });
-    const ev = rand(opts);
-    return { ev, story: true,
+    const evs = opts;
+    return { evs, story: true,
       stmt: { lie: `${cn} was carrying ${Ibad}. I saw it.`, truth: `${cn} had ${I} with them, I think.` },
-      why: `The ${ev.title.toLowerCase()} shows ${ev.detail}. Not ${Ibad}.`,
+      point: `Not ${Ibad}.`,
       q: 'What did you have with you?',
       opts: shuffle([I, I2, Ibad]).map(x => ({ text: `${cap(x)}.`, ok: x === I, key: x, say: `I had ${x} with me.` })),
-      storyWhy: a => `The ${ev.title.toLowerCase()} shows ${ev.detail}. Not ${a.key}.` };
+      storyPoint: a => `Not ${a.key}.` };
   },
   prints: c => {
     const cn = c.client.name, { S } = c;
-    const ev = rand([
+    const evs = ([
       { title: 'Fingerprint Report', text: `No prints from ${cn} anywhere on ${S.landmark}.`, detail: `no prints from ${cn} on ${S.landmark}` },
       { title: 'Dust Test', text: `The dust on ${S.landmark} was undisturbed. Nobody had touched it in weeks.`, detail: `nobody had touched ${S.landmark} in weeks` }
     ]);
-    return { ev, story: false,
+    return { evs, story: false,
       stmt: { lie: `${cn}'s prints were all over ${S.landmark}.`, truth: `I never saw ${cn} touch anything in there, now that I think about it.` },
-      why: `The ${ev.title.toLowerCase()} shows ${ev.detail}.` };
+      point: `` };
   }
 };
 const STORY_ORDER = ['place', 'residue', 'company', 'carried', 'motive'];
@@ -882,6 +883,94 @@ function decoysFor(c) {
   ];
 }
 
+/* ---------- evidence strength (hidden) ---------- */
+// Each card type has a kind and a base strength (1 weak, 2 medium, 3 strong).
+// A random modifier shifts it by one, and the card's wording says so.
+const EVKIND = {
+  'Security Photo': ['photo', 2], "Neighbor's Note": ['witness', 2], 'Delivery Slip': ['record', 3],
+  'Lab Report': ['record', 3], 'Dry Cleaning Slip': ['record', 2],
+  'Birthday Card': ['note', 2], 'Thank-You Note': ['note', 2], 'County Fair Photo': ['photo', 2],
+  'Diary Page': ['note', 2], 'Complaint Letter': ['note', 2], 'Group Chat': ['digital', 2],
+  'Email to a Neighbor': ['digital', 2], 'Cruise Itinerary': ['record', 3], 'Welcome Card': ['note', 1],
+  'Letter to a Cousin': ['note', 2], 'Postcard': ['note', 2], 'Photo Album': ['photo', 2],
+  'Sign-In Sheet': ['record', 2], 'Wall Calendar': ['note', 2],
+  'Group Photo': ['photo', 2], 'Text Message': ['digital', 2], 'Game Night Score Sheet': ['note', 1], "Mail Carrier's Statement": ['witness', 2],
+  'Eyewitness Statement': ['witness', 2], 'Doorbell Camera': ['photo', 3],
+  'Fingerprint Report': ['record', 3], 'Dust Test': ['record', 2]
+};
+const WEAK_WORDS = {
+  photo: ['The photo is very blurry.', 'Half of the picture is a thumb.'],
+  note: ['Most of it is smudged.', 'The ink has faded badly.'],
+  digital: ['It is a cropped screenshot.', 'It is a blurry photo of a screen.'],
+  witness: ['They admit they were not wearing their glasses.', 'They admit they were half asleep.'],
+  record: ['Coffee was spilled on most of it.', 'Part of it is torn off.']
+};
+const STRONG_WORDS = {
+  photo: ['The image is crisp and clear.', 'An expert verified the timestamp.'],
+  note: ['A handwriting expert verified it.', 'It is dated and verified.'],
+  digital: ['The phone company confirmed it.', 'The original was recovered and verified.'],
+  witness: ['Two other neighbors confirm it.', 'They are known for their excellent eyesight.'],
+  record: ['It is an official copy, with a seal.', 'It is time-stamped and verified.']
+};
+const STR_LEAD_NEEDED = 3;   // story mode: the lead card must be this strong
+const STR_AVG_NEEDED = 2;    // testimony mode: average strength of the cards used to strike lies
+
+// Deal one card. mod: -1 weakened, 0 plain, +1 strengthened (random if omitted).
+function makeCard(dim, opt, id, mod) {
+  const [kind, base] = EVKIND[opt.title];
+  if (mod === undefined) { const r = Math.random(); mod = r < 0.3 ? -1 : r < 0.75 ? 0 : 1; }
+  const str = Math.max(1, Math.min(3, base + mod));
+  const words = mod < 0 ? rand(WEAK_WORDS[kind]) : mod > 0 ? rand(STRONG_WORDS[kind]) : '';
+  return { id, dim, title: opt.title, detail: opt.detail, base, mod, str,
+    text: words ? `${opt.text} ${words}` : opt.text,
+    // what the judge says when this card is not convincing
+    reason: mod < 0 ? words : str === 1 ? 'It does not prove much on its own.' : '' };
+}
+// Cards for one fact: a primary, and sometimes a competing backup with a different title.
+// A weak primary always gets a stronger backup (or is re-dealt), so a careful player can always avoid weak evidence.
+function dealCards(dim, evs) {
+  const primary = rand(evs);
+  let c1 = makeCard(dim, primary, dim);
+  const others = evs.filter(o => o.title !== primary.title);
+  const cards = [c1];
+  if ((c1.str === 1 || chance(0.3)) && others.length) {
+    const o2 = rand(others), b2 = EVKIND[o2.title][1];
+    cards.push(makeCard(dim, o2, dim + '-b', c1.str === 1 ? (b2 === 1 ? 1 : rand([0, 1])) : undefined));
+  } else if (c1.str === 1) {
+    cards[0] = makeCard(dim, primary, dim, c1.base === 1 ? 1 : 0);
+  }
+  return cards;
+}
+const strongest = cards => cards.reduce((a, b) => (b.str > a.str ? b : a));
+
+/* ---------- testimony ---------- */
+// Witness statements for the given lie facts; every other fact gets a truthful statement.
+function makeTestimony(c, witness, lieDims) {
+  const lieSet = new Set(lieDims);
+  const stmts = shuffle(Object.keys(c.dims)).map(d => ({ dim: d, lie: lieSet.has(d), text: voice(witness, c.dims[d].stmt[lieSet.has(d) ? 'lie' : 'truth']) }));
+  if (c.dims.residue) stmts.push({ dim: 'fact2', lie: false, text: voice(witness, `Afterward, the ${c.S.name} was covered in ${c.Rs.sub}.`) });
+  c.stmts = stmts; c.nLies = lieDims.length;
+}
+function pickLies(dims) {
+  const n = dims.length >= 4 ? 2 + (chance(0.5) ? 1 : 0) : 1 + (chance(0.5) ? 1 : 0);
+  return shuffle(dims).slice(0, n);
+}
+function resetRound() { game.struck = new Set(); game.sel = null; game.selEv = null; game.used = []; }
+// Story round -> witness round, same case and evidence.
+function storyToTestimony(c) {
+  c.extended = true; c.mode = 'lies';
+  makeTestimony(c, c.witness, pickLies(Object.keys(c.dims)));
+  resetRound(); renderScene(); renderPanel();
+}
+// Witness round -> a second witness, who lies about facts the first one told the truth about.
+function secondWitness(c) {
+  c.extended = true;
+  c.witness = makeChar([c.client.tool, c.witness.tool]);
+  const prevTruth = c.stmts.filter(s => !s.lie && c.dims[s.dim]).map(s => s.dim);
+  makeTestimony(c, c.witness, shuffle(prevTruth).slice(0, Math.min(2, prevTruth.length)));
+  resetRound(); renderScene(); renderPanel();
+}
+
 function genCase(n) {
   const client = makeChar();
   const witness = makeChar(client.tool);
@@ -892,7 +981,7 @@ function genCase(n) {
   const target = person ? someone(client.label, witness.label) : null;
   const charge = person ? `${client.label} ${chargeVerb(client.tool, true)} ${target}.` : `${client.label} ${chargeVerb(client.tool, false)} in the ${S.name}.`;
   const mode = Math.random() < 0.5 ? 'lies' : 'story';
-  const c = { n, client, witness, S, P, O, Rs, Rc, Ro, hour, person, target, charge, mode };
+  const c = { n, client, witness, S, P, O, Rs, Rc, Ro, hour, person, target, charge, mode, extended: false };
   c.neighbor = someone(target, client.label, witness.label);
   c.rel = person ? rand(['friends', 'annoyed', 'strangers']) : null;
   c.roomFeel = person ? null : rand(['spooky', 'favorite', 'daily']);
@@ -901,25 +990,27 @@ function genCase(n) {
   const pool = Object.keys(DIMS).filter(d => mode === 'lies' || d !== 'prints');
   const k = mode === 'lies' ? 3 + Math.floor(Math.random() * 3) : 3 + (chance(0.5) ? 1 : 0);
   const dims = shuffle(pool).slice(0, k);
-  c.dims = {}; for (const d of dims) c.dims[d] = DIMS[d](c);
-  const decoys = shuffle(decoysFor(c)).slice(0, chance(0.5) ? 1 : 2).map((x, i) => ({ ...x, id: i ? 'decoy2' : 'decoy' }));
-  c.evidence = shuffle([...dims.map(d => ({ id: d, title: c.dims[d].ev.title, text: c.dims[d].ev.text })), ...decoys]);
+  c.dims = {}; for (const d of dims) { c.dims[d] = DIMS[d](c); c.dims[d].cards = dealCards(d, c.dims[d].evs); }
+  // Story mode: make sure at least one card is strong enough to lead with.
+  if (mode === 'story') {
+    const all = dims.flatMap(d => c.dims[d].cards);
+    if (!all.some(x => x.str >= STR_LEAD_NEEDED)) {
+      const pickable = all.filter(x => x.base >= 2), x = rand(pickable);
+      const d = x.dim, i = c.dims[d].cards.indexOf(x);
+      c.dims[d].cards[i] = makeCard(d, c.dims[d].evs.find(o => o.title === x.title), x.id, x.base === 3 ? 0 : 1);
+    }
+  }
+  const decoys = shuffle(decoysFor(c)).slice(0, chance(0.5) ? 1 : 2).map((x, i) => ({ ...x, id: i ? 'decoy2' : 'decoy', dim: null, str: 0 }));
+  c.evidence = shuffle([...dims.flatMap(d => c.dims[d].cards), ...decoys]);
   c.ev = Object.fromEntries(c.evidence.map(e => [e.id, e]));
 
-  if (mode === 'lies') {
-    const nLies = k >= 4 ? 2 + (chance(0.5) ? 1 : 0) : 1 + (chance(0.5) ? 1 : 0);
-    const lieSet = new Set(shuffle(dims).slice(0, nLies));
-    const stmts = shuffle(dims).map(d => ({ dim: d, lie: lieSet.has(d), text: voice(witness, c.dims[d].stmt[lieSet.has(d) ? 'lie' : 'truth']) }));
-    if (c.dims.residue) stmts.push({ dim: 'fact2', lie: false, text: voice(witness, `Afterward, the ${S.name} was covered in ${Rs.sub}.`) });
-    c.stmts = stmts; c.nLies = nLies;
-  } else {
-    c.questions = STORY_ORDER.filter(d => c.dims[d]).map(d => ({ dim: d, q: c.dims[d].q, opts: c.dims[d].opts }));
-  }
+  if (mode === 'lies') makeTestimony(c, witness, pickLies(dims));
+  else c.questions = STORY_ORDER.filter(d => c.dims[d]).map(d => ({ dim: d, q: c.dims[d].q, opts: c.dims[d].opts }));
   return c;
 }
 
 /* ---------- game state ---------- */
-const game = { caseNo: 0, won: 0, lost: 0, case: null, patience: 3, sel: null, selEv: null, struck: new Set(), answers: {}, wrongQ: null, faces: {} };
+const game = { caseNo: 0, won: 0, lost: 0, case: null, patience: 3, sel: null, selEv: null, struck: new Set(), answers: {}, wrongQ: null, faces: {}, used: [] };
 const main = document.getElementById('main');
 
 function stats() {
@@ -1253,8 +1344,11 @@ function talk(lines, done) {
       if (panel) panel.classList.remove('locked');
       if (done) done(); return;
     }
-    // line = [speaker, text, emotion, { listener: emotion }]
-    const [k, text, emo, react] = lines[i]; const [name, id] = who(k);
+    // line = [speaker, text, emotion, { listener: emotion }], or a function run at this point
+    // (used to change the scene mid-dialogue); a function may return a line to show.
+    let line = lines[i];
+    if (typeof line === 'function') { line = line(); if (!line) { i++; return show(); } }
+    const [k, text, emo, react] = line; const [name, id] = who(k);
     const faces = { [k]: makeExpr(shiftEmo(k, emo)) };
     for (const [r, e] of Object.entries(react || {})) if (r !== k) faces[r] = makeExpr(shiftEmo(r, e));
     game.faces = faces; renderScene();
@@ -1279,7 +1373,7 @@ function patienceHtml() {
 }
 
 function startCase() {
-  game.caseNo++; game.patience = 3; game.sel = null; game.selEv = null; game.struck = new Set(); game.answers = {}; game.wrongQ = null; game.punUsed = false; game.faces = {};
+  game.caseNo++; game.patience = 3; game.sel = null; game.selEv = null; game.struck = new Set(); game.answers = {}; game.wrongQ = null; game.punUsed = false; game.faces = {}; game.used = [];
   const c = game.case = genCase(game.caseNo);
   renderScene(); stats();
   main.innerHTML = `
@@ -1326,14 +1420,16 @@ function renderPanel() {
     const allAnswered = c.questions.every((q, i) => game.answers[i] !== undefined);
     panel.innerHTML = `
       <div class="box"><h3>Evidence</h3>
-        <div class="evgrid">${c.evidence.map(e => `<div class="opt card static"><div class="t">${esc(e.title)}</div><div class="d">${esc(e.text)}</div></div>`).join('')}</div>
+        <p class="hint">Pick the evidence that best supports the story.</p>
+        <div class="evgrid">${c.evidence.map(e => `<button class="opt card ${game.selEv === e.id ? 'sel' : ''}" data-e="${e.id}"><div class="t">${esc(e.title)}</div><div class="d">${esc(e.text)}</div></button>`).join('')}</div>
       </div>
       <div class="box">
         <div class="row" style="align-items:baseline"><h3>${esc(c.client.name)}'s story</h3>${patienceHtml()}</div>
-        <p class="hint">Choose answers that fit every piece of evidence, then tell the court.</p>
+        <p class="hint">Choose answers that fit every piece of evidence, pick your best evidence above, then tell the court.</p>
         ${c.questions.map((q, i) => `<div class="q"><div class="qt">${esc(q.q)}</div><div class="row">${q.opts.map((o, j) => `<button class="opt ${game.answers[i] === j ? 'sel' : ''} ${game.wrongQ === i && game.answers[i] === j ? 'wrong' : ''}" data-q="${i}" data-o="${j}">${esc(o.text)}</button>`).join('')}</div></div>`).join('')}
       </div>
-      <button class="big" id="tell" ${allAnswered ? '' : 'disabled'}>Tell the court</button>`;
+      <button class="big" id="tell" ${allAnswered && game.selEv ? '' : 'disabled'}>Tell the court</button>`;
+    panel.querySelectorAll('[data-e]').forEach(b => b.onclick = () => { game.selEv = b.dataset.e; renderPanel(); });
     panel.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { game.answers[+b.dataset.q] = +b.dataset.o; game.wrongQ = null; renderPanel(); });
     document.getElementById('tell').onclick = tellStory;
   }
@@ -1343,17 +1439,31 @@ function renderPanel() {
 /* ---------- mode A: catch the lies ---------- */
 function objectLie() {
   const c = game.case; const s = c.stmts[game.sel]; const e = c.ev[game.selEv] || c.evidence.find(x => x.id === game.selEv);
-  if (s.lie && e.id === s.dim) {
-    game.struck.add(game.sel); game.sel = null; game.selEv = null;
+  if (s.lie && e.dim === s.dim) {
+    game.struck.add(game.sel); game.sel = null; game.selEv = null; game.used.push(e);
     const done = game.struck.size >= c.nLies;
     const lines = [
-      ['bucket', `Objection! ${c.dims[s.dim].why}`, 'confident', { witness: 'scared' }],
-      say('judge', 'sustained'),
+      ['bucket', `Objection! The ${e.title.toLowerCase()} shows ${e.detail}.${c.dims[s.dim].point ? ' ' + c.dims[s.dim].point : ''}`, 'confident', { witness: 'scared' }],
+      // a weak card still works, but the judge notices
+      e.str === 1 ? ['judge', `Sustained. But that ${e.title.toLowerCase()} is not very convincing. ${e.reason}`, 'stern', { witness: 'scared', bucket: 'nervous' }] : say('judge', 'sustained'),
       say('witness', 'witnessCaught'),
       ...(rarePun('caught') || [])
     ];
     renderPanel();
-    if (done) {
+    const avg = game.used.reduce((t, x) => t + x.str, 0) / game.used.length;
+    if (done && !c.extended && avg < STR_AVG_NEEDED) {
+      // The lies are gone, but the evidence used was flimsy: the prosecution calls a second witness.
+      const weakest = game.used.reduce((x, y) => (y.str < x.str ? y : x));
+      lines.push(
+        ['judge', `That testimony does not hold up. But some of the defense's evidence was flimsy, Ms. Bucket. That ${weakest.title.toLowerCase()}, for one.`, 'stern', { bucket: 'nervous', client: 'nervous' }],
+        ['pros', 'Then the prosecution would like to call one more witness, Your Honor.', 'smug', { client: 'scared' }],
+        ['judge', 'Granted.', 'neutral', {}],
+        () => { secondWitness(c); },
+        () => ['pros', `The prosecution calls ${c.witness.label} to the stand.`, 'neutral', { witness: 'confident' }],
+        () => say('witness', 'witnessOpen'),
+        () => say('bucket', 'bucketLies'));
+      talk(lines);
+    } else if (done) {
       lines.push(...(rarePun('liesWin') || []));
       lines.push(say('pros', 'prosRests'));
       lines.push(say('judge', 'judgeLiesWin'));
@@ -1361,10 +1471,10 @@ function objectLie() {
     } else talk(lines);
   } else {
     let lines = [['bucket', `Objection! Please look at the ${e.title.toLowerCase()}.`, 'confident', { witness: 'nervous' }]];
-    if (!s.lie && e.id === s.dim) {
+    if (!s.lie && e.dim === s.dim) {
       lines.push(say('pros', 'prosAgrees'));
       lines.push(['judge', 'Overruled.', 'stern', { bucket: 'embarrassed', pros: 'smug' }]);
-    } else if (e.id.startsWith('decoy')) {
+    } else if (!e.dim) {
       lines.push(['judge', `Overruled. That is a ${e.title.toLowerCase()}. It is not relevant.`, 'stern', { bucket: 'embarrassed', pros: 'smug' }]);
     } else if (!s.lie) {
       lines.push(['judge', 'Overruled. Nothing is wrong with that statement.', 'stern', { bucket: 'embarrassed', pros: 'smug' }]);
@@ -1400,6 +1510,25 @@ function tellStory() {
   const c = game.case;
   const wrongIdx = c.questions.findIndex((q, i) => !q.opts[game.answers[i]].ok);
   const story = storyText(c);
+  const lead = c.ev[game.selEv];
+  if (wrongIdx === -1 && !c.extended && (!lead.dim || lead.str < STR_LEAD_NEEDED)) {
+    // The story is right, but the evidence offered for it is not convincing: the case goes to a witness.
+    const doubt = !lead.dim
+      ? `The story fits, Ms. Bucket. But a ${lead.title.toLowerCase()} does not prove any of it.`
+      : `The story fits, Ms. Bucket. But that ${lead.title.toLowerCase()} is not enough to convince me.${lead.reason ? ' ' + lead.reason : ''}`;
+    talk([
+      ['client', story, 'nervous', {}],
+      ['pros', 'The prosecution has no objections to the story itself.', 'neutral', { client: 'relieved' }],
+      ['judge', doubt, 'stern', { bucket: 'nervous', client: 'nervous' }],
+      ['pros', 'Then the prosecution would like to call a witness, Your Honor.', 'smug', { client: 'scared' }],
+      ['judge', 'Granted.', 'neutral', {}],
+      () => { storyToTestimony(c); },
+      () => ['pros', `The prosecution calls ${c.witness.label} to the stand.`, 'neutral', { witness: 'confident' }],
+      () => say('witness', 'witnessOpen'),
+      () => say('bucket', 'bucketLies')
+    ]);
+    return;
+  }
   if (wrongIdx === -1) {
     talk([
       ['client', story, 'nervous', {}],
@@ -1410,7 +1539,8 @@ function tellStory() {
   }
   const q = c.questions[wrongIdx]; const ans = q.opts[game.answers[wrongIdx]];
   game.wrongQ = wrongIdx; renderPanel();
-  const why = c.dims[q.dim].storyWhy(ans);
+  const card = strongest(c.dims[q.dim].cards);
+  const why = `The ${card.title.toLowerCase()} shows ${card.detail}. ${c.dims[q.dim].storyPoint(ans)}`;
   // On the last strike, the judge does not offer another try; the verdict follows directly.
   const lastStrike = game.patience <= 1;
   penalize([
