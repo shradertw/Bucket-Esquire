@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bucket, Esquire</title>
+<style>
+  :root {
+    --bg: #f4ede1;
+    --ink: #2b2620;
+    --muted: #6d6458;
+    --panel: #fffaf2;
+    --line: #d9ccb6;
+    --accent: #3d6fa5;
+    --accent-ink: #ffffff;
+    --good: #2f7d4f;
+    --bad: #b5402f;
+    --sel: #ffe9a8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 12px 16px 40px; }
+  header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  h1 { font-size: 22px; margin: 4px 0; letter-spacing: .5px; }
+  .stats { color: var(--muted); font-size: 14px; }
+  #scene { width: 100%; height: auto; display: block; border-radius: 10px; border: 2px solid var(--line); background: #e9dcc6; }
+  .charge {
+    margin: 10px 0 6px; padding: 10px 12px; background: var(--panel);
+    border: 2px solid var(--line); border-radius: 10px; font-weight: 600;
+  }
+  .charge small { display: block; font-weight: 400; color: var(--muted); }
+  .patience { font-size: 14px; color: var(--muted); margin-left: auto; }
+  .patience b { color: var(--bad); letter-spacing: 2px; }
+  #dialog {
+    margin: 8px 0; padding: 10px 12px; background: #2b2620; color: #fdf6e8;
+    border-radius: 10px; min-height: 92px; display: none; cursor: pointer;
+  }
+  #dialog .who { font-weight: 700; color: #ffd76a; font-size: 14px; }
+  #dialog .say { margin: 2px 0 6px; }
+  #dialog .next { font-size: 13px; color: #c9bfae; text-align: right; }
+  #panel { margin-top: 8px; }
+  #panel.locked { opacity: .45; pointer-events: none; }
+  .box { background: var(--panel); border: 2px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+  .box h3 { margin: 0 0 6px; font-size: 15px; }
+  .hint { color: var(--muted); font-size: 14px; margin: 0 0 8px; }
+  .list { display: grid; gap: 6px; }
+  .opt {
+    text-align: left; width: 100%; padding: 8px 10px; border-radius: 8px;
+    border: 2px solid var(--line); background: #fff; color: var(--ink); font: inherit; cursor: pointer;
+  }
+  .opt:hover { border-color: var(--accent); }
+  .opt.sel { background: var(--sel); border-color: #d9a400; }
+  .opt.struck { text-decoration: line-through; color: var(--muted); background: #f0ebe2; cursor: default; }
+  .opt.wrong { border-color: var(--bad); }
+  .card .t { font-weight: 700; font-size: 14px; }
+  .card .d { font-size: 14px; }
+  .evgrid { display: grid; gap: 6px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 560px) { .evgrid { grid-template-columns: 1fr; } }
+  .static { cursor: default; }
+  .static:hover { border-color: var(--line); }
+  .q { margin-bottom: 10px; }
+  .q .qt { font-weight: 600; margin-bottom: 4px; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .row .opt { width: auto; flex: 1 1 160px; }
+  .big {
+    display: block; width: 100%; padding: 12px; border: 0; border-radius: 10px;
+    background: var(--accent); color: var(--accent-ink); font: 700 17px/1 inherit; font-family: inherit;
+    cursor: pointer; letter-spacing: .5px;
+  }
+  .big:disabled { opacity: .4; cursor: default; }
+  #overlay {
+    position: fixed; inset: 0; background: rgba(30,25,20,.6); display: none;
+    align-items: center; justify-content: center; padding: 16px; z-index: 10;
+  }
+  #overlay .card2 {
+    background: var(--panel); border-radius: 14px; padding: 22px; max-width: 420px; width: 100%; text-align: center;
+  }
+  #overlay h2 { margin: 0 0 6px; font-size: 32px; }
+  #overlay p { margin: 0 0 16px; }
+  .guilty { color: var(--bad); }
+  .notguilty { color: var(--good); }
+  .title-screen { text-align: center; padding: 10px 0; }
+  .title-screen p { max-width: 480px; margin: 8px auto 16px; }
+  .talking { animation: bob .45s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: bottom center; }
+  @keyframes bob { from { transform: translateY(0) } to { transform: translateY(-4px) } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Bucket, Esquire</h1>
+    <div class="stats" id="stats"></div>
+  </header>
+  <svg id="scene" viewBox="0 0 400 230" role="img" aria-label="Courtroom"></svg>
+  <div id="main"></div>
+</div>
+<div id="overlay"><div class="card2" id="overlayCard"></div></div>
+
+<script>
+/* ---------- helpers ---------- */
+const rand = a => a[Math.floor(Math.random() * a.length)];
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/* ---------- word lists ---------- */
+const NAMES = ['Abe','Bea','Carl','Cora','Dot','Edna','Frank','Fern','Gus','Hank','Hazel','Ida','Jo','Ken','Kip','Lou','Mabel','Marv','Mort','Ned','Opal','Pip','Pearl','Polly','Ruth','Sal','Stan','Tess','Toby','Walt','Wendy','Clem','Wilma','Mo','Tina'];
+const TARGETS = ['Mop','Broom','Lamp','Sock','Rolling Pin','Toothbrush','Ladle','Whisk','Sponge','Stapler','Remote','Teaspoon','Doormat','Oven Mitt'];
+const PVERBS = ['insulted','pickpocketed','pranked','spilled soup on','tripped','ghosted','sneezed on','short-changed','scared','ate the leftovers of'];
+const LVERBS = ['littered','loitered','trespassed','made a huge mess','threw a loud party','left the faucet running','sang off-key','tracked dirt'];
+const ROOMS = [
+  { name: 'kitchen', landmark: 'the refrigerator' },
+  { name: 'garage', landmark: 'the lawnmower' },
+  { name: 'laundry room', landmark: 'the washing machine' },
+  { name: 'pantry', landmark: 'a shelf of canned beans' },
+  { name: 'backyard', landmark: 'the garden hose' },
+  { name: 'attic', landmark: 'a box labeled "XMAS?"' },
+  { name: 'bathroom', landmark: 'the bathtub' },
+  { name: 'living room', landmark: 'the couch' },
+  { name: 'basement', landmark: 'the water heater' }
+];
+const RESIDUES = [
+  { sub: 'flour', act: 'baking cookies' },
+  { sub: 'motor grease', act: 'fixing the car' },
+  { sub: 'blue paint', act: 'painting the fence' },
+  { sub: 'mud', act: 'gardening' },
+  { sub: 'glitter', act: 'making a birthday card' },
+  { sub: 'sawdust', act: 'building a birdhouse' },
+  { sub: 'soap suds', act: 'washing the dishes' }
+];
+const HOURS = ['7:15 PM','9:40 AM','noon','midnight','3:30 PM','6:05 AM','8:45 PM','11:20 AM'];
+const DECOYS = [
+  { title: 'Coupon', text: '10% off grout. Expired. Still nice to have.' },
+  { title: 'Grocery List', text: 'Eggs. More eggs. Something for the eggs.' },
+  { title: 'Photo of a Cloud', text: 'It looks a bit like a duck. Not related to anything.' },
+  { title: 'Bus Schedule', text: 'For a bus that does not come here.' }
+];
+
+/* ---------- character drawing ---------- */
+const HAIRC = ['#3b2a1e','#7a4a22','#d9a441','#c94f2b','#222222','#9a9a9a','#e8e8e8','#5b3fa0'];
+const BODYC = ['#d9534f','#4a90c2','#5cb85c','#e8a33d','#8e6bbf','#e07aa8','#3fb3a8','#c8b560'];
+
+const TOOLS = {
+  hammer:  { label: 'Hammer', face: { x: 50, y: 37, r: 13 }, hair: { x: 50, y: 16, w: 22 },
+    draw: c => `<rect x="45" y="52" width="10" height="88" rx="3" fill="#a5713f"/><rect x="16" y="16" width="68" height="38" rx="5" fill="#8c96a0"/><rect x="16" y="16" width="68" height="8" rx="4" fill="#a9b2bb"/>` },
+  spatula: { label: 'Spatula', face: { x: 50, y: 32, r: 15 }, hair: { x: 50, y: 10, w: 22 },
+    draw: c => `<rect x="46" y="70" width="8" height="70" rx="3" fill="#333"/><rect x="24" y="10" width="52" height="64" rx="10" fill="${c}"/><rect x="34" y="52" width="5" height="16" rx="2" fill="#0003"/><rect x="47.5" y="52" width="5" height="16" rx="2" fill="#0003"/><rect x="61" y="52" width="5" height="16" rx="2" fill="#0003"/>` },
+  kettle:  { label: 'Kettle', face: { x: 50, y: 102, r: 17 }, hair: { x: 50, y: 58, w: 14 },
+    draw: c => `<path d="M24 72 Q50 30 76 72" stroke="#333" stroke-width="5" fill="none"/><path d="M84 104 L100 84 L97 80 L82 94 Z" fill="${c}"/><path d="M14 132 Q10 72 50 64 Q90 72 86 132 Z" fill="${c}"/><ellipse cx="50" cy="64" rx="17" ry="6" fill="#0003"/><circle cx="50" cy="57" r="4" fill="#333"/>` },
+  toaster: { label: 'Toaster', face: { x: 50, y: 102, r: 18 }, hair: { x: 50, y: 60, w: 30 },
+    draw: c => `<rect x="12" y="62" width="76" height="76" rx="16" fill="${c}"/><rect x="26" y="57" width="18" height="7" rx="3" fill="#333"/><rect x="56" y="57" width="18" height="7" rx="3" fill="#333"/><rect x="86" y="88" width="8" height="14" rx="2" fill="#333"/>` },
+  wrench:  { label: 'Wrench', face: { x: 50, y: 48, r: 11 }, hair: { x: 50, y: 34, w: 12 },
+    draw: c => `<rect x="43" y="56" width="14" height="84" rx="6" fill="#9aa4ad"/><path d="M22 18 L22 44 Q22 66 50 66 Q78 66 78 44 L78 18 L63 18 L63 34 L37 34 L37 18 Z" fill="#8c96a0"/>` },
+  pan:     { label: 'Frying Pan', face: { x: 50, y: 58, r: 18 }, hair: { x: 50, y: 24, w: 24 },
+    draw: c => `<rect x="46" y="88" width="8" height="52" rx="3" fill="#333"/><circle cx="50" cy="58" r="34" fill="#3a3a3a"/><circle cx="50" cy="58" r="28" fill="${c}"/>` },
+  plunger: { label: 'Plunger', face: { x: 50, y: 33, r: 13 }, hair: { x: 50, y: 14, w: 20 },
+    draw: c => `<rect x="46" y="48" width="8" height="92" rx="3" fill="#b07b46"/><path d="M18 50 Q18 14 50 14 Q82 14 82 50 Z" fill="${c}"/><rect x="16" y="46" width="68" height="7" rx="3" fill="#0003"/>` },
+  mug:     { label: 'Mug', face: { x: 48, y: 100, r: 17 }, hair: { x: 48, y: 62, w: 24 },
+    draw: c => `<path d="M74 80 Q96 80 96 100 Q96 120 74 120" stroke="${c}" stroke-width="8" fill="none"/><rect x="20" y="62" width="56" height="76" rx="8" fill="${c}"/><rect x="20" y="62" width="56" height="7" rx="3" fill="#fff5"/>` },
+  colander:{ label: 'Colander', face: { x: 50, y: 96, r: 17 }, hair: { x: 50, y: 70, w: 30 },
+    draw: c => `<rect x="4" y="70" width="14" height="6" rx="3" fill="${c}"/><rect x="82" y="70" width="14" height="6" rx="3" fill="${c}"/><path d="M12 70 L88 70 Q86 136 50 136 Q14 136 12 70 Z" fill="${c}"/><circle cx="36" cy="125" r="2" fill="#0005"/><circle cx="50" cy="128" r="2" fill="#0005"/><circle cx="64" cy="125" r="2" fill="#0005"/><circle cx="43" cy="118" r="2" fill="#0005"/><circle cx="57" cy="118" r="2" fill="#0005"/>` }
+};
+const CLIENT_TOOLS = Object.keys(TOOLS);
+
+function drawHair(style, h, hc) {
+  const { x, y, w } = h;
+  switch (style) {
+    case 'tuft': return `<path d="M${x} ${y} q-4 -10 -9 -8 M${x} ${y} q0 -12 2 -13 M${x} ${y} q4 -10 9 -7" stroke="${hc}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+    case 'bowl': return `<path d="M${x - w} ${y + 5} Q${x} ${y - w * 0.9} ${x + w} ${y + 5} Z" fill="${hc}"/>`;
+    case 'spiky': {
+      const pts = []; const n = 5; const L = x - w * 0.8, R = x + w * 0.8;
+      for (let i = 0; i <= n * 2; i++) { const px = L + (R - L) * i / (n * 2); pts.push(`${px},${i % 2 ? y - 10 : y + 3}`); }
+      return `<polygon points="${pts.join(' ')}" fill="${hc}"/>`;
+    }
+    case 'curly': { let s = ''; for (let i = -2; i <= 2; i++) s += `<circle cx="${x + i * w * 0.38}" cy="${y - 1 - (Math.abs(i) === 2 ? -3 : 0)}" r="${w * 0.27}" fill="${hc}"/>`; return s; }
+    case 'mohawk': return `<path d="M${x - 4} ${y + 3} L${x - 3} ${y - 14} L${x + 3} ${y - 17} L${x + 4} ${y + 3} Z" fill="${hc}"/>`;
+    case 'part': return `<path d="M${x - w} ${y + 6} Q${x - w} ${y - 6} ${x - w * 0.2} ${y - 5} L${x - w * 0.1} ${y + 2} L${x} ${y - 6} Q${x + w} ${y - 6} ${x + w} ${y + 6} Z" fill="${hc}"/>`;
+    default: return '';
+  }
+}
+
+function drawFace(f, fc, hc) {
+  const { x, y, r } = fc; const sw = Math.max(1.3, r * 0.1);
+  const ey = y - 0.12 * r, dx = 0.38 * r, my = y + 0.55 * r;
+  let s = '';
+  // eyes
+  for (const ex of [x - dx, x + dx]) {
+    if (f.eyes === 'dots') s += `<circle cx="${ex}" cy="${ey}" r="${r * 0.11}" fill="#222"/>`;
+    else if (f.eyes === 'wide') s += `<circle cx="${ex}" cy="${ey}" r="${r * 0.18}" fill="#fff" stroke="#222" stroke-width="1.2"/><circle cx="${ex}" cy="${ey}" r="${r * 0.08}" fill="#222"/>`;
+    else if (f.eyes === 'sleepy') s += `<path d="M${ex - r * 0.14} ${ey} Q${ex} ${ey + r * 0.08} ${ex + r * 0.14} ${ey}" stroke="#222" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
+    else s += `<path d="M${ex - r * 0.14} ${ey + r * 0.04} Q${ex} ${ey - r * 0.14} ${ex + r * 0.14} ${ey + r * 0.04}" stroke="#222" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
+  }
+  if (f.brows) s += `<path d="M${x - dx - r * 0.18} ${ey - r * 0.3} L${x - dx + r * 0.16} ${ey - r * 0.22} M${x + dx + r * 0.18} ${ey - r * 0.3} L${x + dx - r * 0.16} ${ey - r * 0.22}" stroke="#222" stroke-width="${sw}" stroke-linecap="round"/>`;
+  // facial hair (under mouth)
+  if (f.fhair === 'beard') s += `<path d="M${x - 0.75 * r} ${y + 0.2 * r} Q${x - 0.7 * r} ${y + 1.15 * r} ${x} ${y + 1.2 * r} Q${x + 0.7 * r} ${y + 1.15 * r} ${x + 0.75 * r} ${y + 0.2 * r} Q${x + 0.5 * r} ${y + 0.78 * r} ${x} ${y + 0.78 * r} Q${x - 0.5 * r} ${y + 0.78 * r} ${x - 0.75 * r} ${y + 0.2 * r} Z" fill="${hc}"/>`;
+  if (f.fhair === 'goatee') s += `<path d="M${x - 0.15 * r} ${y + 0.74 * r} L${x + 0.15 * r} ${y + 0.74 * r} L${x} ${y + 1.08 * r} Z" fill="${hc}"/>`;
+  // mouth
+  if (f.mouth === 'smile') s += `<path d="M${x - 0.25 * r} ${my} Q${x} ${my + 0.22 * r} ${x + 0.25 * r} ${my}" stroke="#222" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
+  else if (f.mouth === 'flat') s += `<path d="M${x - 0.2 * r} ${my} L${x + 0.2 * r} ${my}" stroke="#222" stroke-width="${sw}" stroke-linecap="round"/>`;
+  else if (f.mouth === 'o') s += `<ellipse cx="${x}" cy="${my}" rx="${r * 0.09}" ry="${r * 0.12}" fill="#222"/>`;
+  else s += `<path d="M${x - 0.2 * r} ${my} Q${x + 0.05 * r} ${my + 0.12 * r} ${x + 0.25 * r} ${my - 0.08 * r}" stroke="#222" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
+  if (f.fhair === 'mustache') s += `<path d="M${x - 0.45 * r} ${y + 0.36 * r} Q${x - 0.2 * r} ${y + 0.14 * r} ${x} ${y + 0.3 * r} Q${x + 0.2 * r} ${y + 0.14 * r} ${x + 0.45 * r} ${y + 0.36 * r} Q${x + 0.2 * r} ${y + 0.44 * r} ${x} ${y + 0.38 * r} Q${x - 0.2 * r} ${y + 0.44 * r} ${x - 0.45 * r} ${y + 0.36 * r} Z" fill="${hc}"/>`;
+  return s;
+}
+
+function drawAcc(acc, fc, h) {
+  const { x, y, r } = fc; const ey = y - 0.12 * r, dx = 0.38 * r;
+  switch (acc) {
+    case 'glasses': return `<g stroke="#222" stroke-width="1.3" fill="none"><circle cx="${x - dx}" cy="${ey}" r="${r * 0.26}"/><circle cx="${x + dx}" cy="${ey}" r="${r * 0.26}"/><path d="M${x - dx + r * 0.26} ${ey} L${x + dx - r * 0.26} ${ey}"/></g>`;
+    case 'monocle': return `<circle cx="${x + dx}" cy="${ey}" r="${r * 0.25}" stroke="#c9a227" stroke-width="1.4" fill="none"/><path d="M${x + dx + r * 0.25} ${ey} Q${x + r} ${y + 0.4 * r} ${x + 0.8 * r} ${y + r}" stroke="#c9a227" stroke-width=".8" fill="none"/>`;
+    case 'bowtie': { const by = y + 1.45 * r, sz = r * 0.32; return `<path d="M${x} ${by} L${x - 2 * sz} ${by - sz} L${x - 2 * sz} ${by + sz} Z M${x} ${by} L${x + 2 * sz} ${by - sz} L${x + 2 * sz} ${by + sz} Z" fill="#c0392b"/><circle cx="${x}" cy="${by}" r="${sz * 0.45}" fill="#922b21"/>`; }
+    case 'tophat': { const w = Math.max(h.w, 14); return `<rect x="${h.x - w * 0.85}" y="${h.y - 3}" width="${w * 1.7}" height="4" rx="1.5" fill="#222"/><rect x="${h.x - w * 0.5}" y="${h.y - 3 - w * 0.9}" width="${w}" height="${w * 0.9}" fill="#222"/><rect x="${h.x - w * 0.5}" y="${h.y - 8}" width="${w}" height="3" fill="#c0392b"/>`; }
+    case 'beanie': { const w = Math.max(h.w, 14); return `<path d="M${h.x - w * 0.8} ${h.y + 2} Q${h.x} ${h.y - w * 1.1} ${h.x + w * 0.8} ${h.y + 2} Z" fill="#2e86c1"/><rect x="${h.x - w * 0.85}" y="${h.y - 1}" width="${w * 1.7}" height="5" rx="2" fill="#1b4f72"/><circle cx="${h.x}" cy="${h.y - w * 0.62}" r="3.5" fill="#f5f5f5"/>`; }
+    case 'flower': { const fx = h.x + h.w * 0.6, fy = h.y; let s = ''; for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5; s += `<circle cx="${fx + Math.cos(a) * 3.5}" cy="${fy + Math.sin(a) * 3.5}" r="2.8" fill="#f78fb3"/>`; } return s + `<circle cx="${fx}" cy="${fy}" r="2" fill="#f7d046"/>`; }
+    default: return '';
+  }
+}
+
+function randFeat() {
+  return {
+    color: rand(BODYC), hairColor: rand(HAIRC),
+    eyes: rand(['dots','dots','wide','sleepy','happy']),
+    mouth: rand(['smile','flat','o','smirk']),
+    brows: Math.random() < 0.3,
+    hair: rand(['none','tuft','bowl','spiky','curly','mohawk','part']),
+    fhair: rand(['none','none','mustache','beard','goatee']),
+    acc: rand(['none','none','glasses','monocle','bowtie','tophat','beanie','flower'])
+  };
+}
+
+function drawTool(tool, f) {
+  const t = TOOLS[tool];
+  const hatOnTop = f.acc === 'tophat' || f.acc === 'beanie';
+  return t.draw(f.color) + (hatOnTop ? '' : drawHair(f.hair, t.hair, f.hairColor)) + drawFace(f, t.face, f.hairColor) + drawAcc(f.acc, t.face, t.hair);
+}
+
+function drawBucket() {
+  const f = { eyes: 'dots', mouth: 'smile', brows: false, fhair: 'none' };
+  const fc = { x: 50, y: 80, r: 18 };
+  return `
+    <path d="M17 46 Q12 92 19 108 L31 108 L30 50 Z" fill="#f2cf5b"/>
+    <path d="M83 46 Q88 92 81 108 L69 108 L70 50 Z" fill="#f2cf5b"/>
+    <path d="M24 46 Q50 4 76 46" stroke="#555" stroke-width="2.5" fill="none"/>
+    <path d="M22 44 L78 44 L70 136 L30 136 Z" fill="#7fa3c4"/>
+    <path d="M26 92 L74 92" stroke="#6b8fb0" stroke-width="2"/><path d="M28 116 L72 116" stroke="#6b8fb0" stroke-width="2"/>
+    <ellipse cx="50" cy="44" rx="28" ry="6" fill="#6b8fb0"/>
+    <path d="M19 50 Q20 28 50 27 Q80 28 81 50 Q70 41 60 52 Q50 40 40 52 Q30 41 19 50 Z" fill="#f2cf5b"/>
+    ${drawFace(f, fc, '#f2cf5b')}
+    <g stroke="#222" stroke-width="1.6" fill="#ffffff55"><circle cx="${50 - 0.38 * 18}" cy="${80 - 0.12 * 18}" r="5.5"/><circle cx="${50 + 0.38 * 18}" cy="${80 - 0.12 * 18}" r="5.5"/><path d="M${50 - 0.38 * 18 + 5.5} ${80 - 0.12 * 18} L${50 + 0.38 * 18 - 5.5} ${80 - 0.12 * 18}" fill="none"/></g>`;
+}
+
+function drawJudge() {
+  const f = { eyes: 'sleepy', mouth: 'flat', brows: true, fhair: 'none' };
+  const fc = { x: 52, y: 108, r: 15 };
+  let wig = ''; for (let i = -3; i <= 3; i++) wig += `<circle cx="${50 + i * 9}" cy="${72 + Math.abs(i) * 4}" r="7" fill="#f1f1f1" stroke="#ccc"/>`;
+  return `<path d="M10 132 L90 132 Q92 92 52 78 Q20 86 10 132 Z" fill="#d8dde3"/><rect x="8" y="130" width="84" height="8" rx="2" fill="#8c96a0"/>${wig}${drawFace(f, fc, '#eee')}${drawAcc('glasses', fc, {})}`;
+}
+
+function drawProsecutor() {
+  const f = { eyes: 'dots', mouth: 'smirk', brows: true, fhair: 'mustache', hairColor: '#222' };
+  const fc = { x: 50, y: 30, r: 14 };
+  return `<rect x="46" y="56" width="8" height="84" rx="3" fill="#a5713f"/><path d="M26 8 L74 8 L74 46 Q50 72 26 46 Z" fill="#8c96a0"/>${drawHair('part', { x: 50, y: 10, w: 22 }, '#222')}${drawFace(f, fc, '#222')}${drawAcc('bowtie', { x: 50, y: 40, r: 14 }, {})}`;
+}
+
+/* ---------- scene ---------- */
+const scene = document.getElementById('scene');
+function place(id, inner, x, y, s) {
+  return `<g transform="translate(${x},${y}) scale(${s})"><g id="${id}">${inner}</g></g>`;
+}
+function renderScene() {
+  const c = game.case; const story = c && c.mode === 'story';
+  let s = `
+    <rect x="0" y="0" width="400" height="230" fill="#e9dcc6"/>
+    <rect x="0" y="120" width="400" height="45" fill="#c9a77c"/>
+    <rect x="0" y="165" width="400" height="65" fill="#b98d5a"/>`;
+  s += place('char-judge', drawJudge(), 165, -16, 0.7);
+  s += `<rect x="148" y="96" width="104" height="66" rx="3" fill="#7a4a2a"/><rect x="148" y="96" width="104" height="8" fill="#8f5a35"/>
+        <text x="200" y="135" text-anchor="middle" font-size="8" font-family="Georgia, serif" fill="#e9d2a8">JUDGE IRON</text>`;
+  if (c) {
+    const witness = story ? c.client : c.witness;
+    s += place('char-witness', drawTool(witness.tool, witness.feat), 250, 52, 0.58);
+  }
+  s += `<rect x="252" y="122" width="56" height="42" rx="3" fill="#8f5a35"/>`;
+  s += place('char-pros', drawProsecutor(), 322, 66, 0.68);
+  s += `<rect x="300" y="150" width="96" height="40" rx="3" fill="#7a4a2a"/>`;
+  s += place('char-bucket', drawBucket(), 8, 66, 0.72);
+  if (c && !story) s += place('char-client', drawTool(c.client.tool, c.client.feat), 84, 74, 0.62);
+  s += `<rect x="4" y="150" width="140" height="40" rx="3" fill="#7a4a2a"/>`;
+  scene.innerHTML = s;
+}
+function setTalking(id) {
+  scene.querySelectorAll('.talking').forEach(e => e.classList.remove('talking'));
+  if (!id) return;
+  const el = document.getElementById(id); if (el) el.classList.add('talking');
+}
+
+/* ---------- case generation ---------- */
+function makeChar(exclude) {
+  const tool = rand(CLIENT_TOOLS.filter(t => t !== exclude));
+  const label = TOOLS[tool].label;
+  const same = NAMES.filter(n => n[0] === label[0]);
+  const name = rand(same.length ? same : NAMES);
+  return { tool, name, label: `${name} the ${label}`, kind: label.toLowerCase(), feat: randFeat() };
+}
+
+function genCase(n) {
+  const client = makeChar();
+  const witness = makeChar(client.tool);
+  const [S, P, O] = shuffle(ROOMS);
+  const [Rs, Rc, Ro] = shuffle(RESIDUES);
+  const hour = rand(HOURS);
+  const person = Math.random() < 0.5;
+  const target = person ? `${rand(NAMES)} the ${rand(TARGETS)}` : null;
+  const charge = person ? `${client.label} ${rand(PVERBS)} ${target}.` : `${client.label} ${rand(LVERBS)} in the ${S.name}.`;
+  const mode = Math.random() < 0.5 ? 'lies' : 'story';
+  const cn = client.name;
+
+  const ev = {
+    place: { id: 'place', title: 'Security Photo', text: `A blurry photo of ${cn} standing next to ${P.landmark}. Timestamp: ${hour}.` },
+    residue: { id: 'residue', title: 'Lab Report', text: `Swab of ${cn}: traces of ${Rc.sub}. Nothing else. Very clean otherwise.` },
+    motive: person
+      ? { id: 'motive', title: 'Birthday Card', text: `From ${cn} to ${target}: "You are my favorite. Happy birthday." There is a small drawn heart.` }
+      : { id: 'motive', title: 'Diary Page', text: `From ${cn}'s diary: "The ${S.name} is too spooky. I never go in there. Not even for snacks."` },
+    decoy: Object.assign({ id: 'decoy' }, rand(DECOYS))
+  };
+  const evidence = shuffle([ev.place, ev.residue, ev.motive, ev.decoy]);
+
+  const c = { n, client, witness, S, P, O, Rs, Rc, Ro, hour, person, target, charge, mode, ev, evidence };
+
+  if (mode === 'lies') {
+    const dims = shuffle(['place', 'residue', 'motive']);
+    const nLies = Math.random() < 0.5 ? 2 : 3;
+    const lieSet = new Set(dims.slice(0, nLies));
+    const say = {
+      place: [`I saw ${cn} in the ${S.name} at ${hour}. Clear as day.`, `Around ${hour}, I think I saw ${cn} over by ${P.landmark}.`],
+      residue: [`${cn} was covered in ${Rs.sub}. Same as the crime scene. Suspicious.`, `${cn} had a little ${Rc.sub} on them. I did not think much of it.`],
+      motive: person
+        ? [`Everyone knows ${cn} cannot stand ${target}.`, `${cn} and ${target} seem like good pals, honestly.`]
+        : [`${cn} loves the ${S.name}. Goes in there all the time.`, `${cn} does not like the ${S.name}. Says it is spooky.`]
+    };
+    const stmts = shuffle(dims).map(d => ({ dim: d, lie: lieSet.has(d), text: say[d][lieSet.has(d) ? 0 : 1] }));
+    stmts.unshift({ dim: 'fact', lie: false, text: `It all happened in the ${S.name}, at ${hour}.` });
+    stmts.push({ dim: 'fact2', lie: false, text: `Afterward, the ${S.name} was covered in ${Rs.sub}.` });
+    c.stmts = stmts; c.nLies = nLies;
+  } else {
+    c.questions = [
+      { dim: 'place', q: `Where were you at ${hour}?`, opts: shuffle([P, S, O]).map(r => ({ text: `In the ${r.name}.`, ok: r === P, key: r.name })) },
+      { dim: 'residue', q: `What were you doing at the time?`, opts: shuffle([Rc, Rs, Ro]).map(r => ({ text: `${cap(r.act)}.`, ok: r === Rc, key: r.act })) },
+      { dim: 'motive', q: person ? `How do you feel about ${target}?` : `How do you feel about the ${S.name}?`,
+        opts: shuffle(person
+          ? [{ text: 'We are close friends.', ok: true }, { text: 'I find them very annoying.', ok: false }, { text: 'Who? Never met them.', ok: false }]
+          : [{ text: 'It is spooky. I stay out.', ok: true }, { text: 'It is my favorite room.', ok: false }, { text: 'I go in there every day.', ok: false }]) }
+    ];
+  }
+  return c;
+}
+
+/* ---------- game state ---------- */
+const game = { caseNo: 0, won: 0, lost: 0, case: null, patience: 3, sel: null, selEv: null, struck: new Set(), answers: {}, wrongQ: null };
+const main = document.getElementById('main');
+
+function stats() {
+  document.getElementById('stats').textContent = game.caseNo ? `Case ${game.caseNo} · Won ${game.won} · Lost ${game.lost}` : '';
+}
+
+/* ---------- dialogue ---------- */
+const SPEAKERS = { judge: ['Judge Iron', 'char-judge'], pros: ['Prosecutor Spade', 'char-pros'], bucket: ['Ms. Bucket', 'char-bucket'] };
+function who(k) {
+  const c = game.case;
+  if (SPEAKERS[k]) return SPEAKERS[k];
+  if (k === 'client') return [c.client.label, c.mode === 'story' ? 'char-witness' : 'char-client'];
+  if (k === 'witness') return [c.witness.label, 'char-witness'];
+  return [k, null];
+}
+function talk(lines, done) {
+  const box = document.getElementById('dialog'); const panel = document.getElementById('panel');
+  let i = 0;
+  if (panel) panel.classList.add('locked');
+  box.style.display = 'block';
+  const show = () => {
+    if (i >= lines.length) {
+      box.style.display = 'none'; box.onclick = null; setTalking(null);
+      if (panel) panel.classList.remove('locked');
+      if (done) done(); return;
+    }
+    const [k, text] = lines[i]; const [name, id] = who(k);
+    box.innerHTML = `<div class="who">${esc(name)}</div><div class="say">${esc(text)}</div><div class="next">tap to continue ▸</div>`;
+    setTalking(id); i++;
+  };
+  box.onclick = show; show();
+}
+
+/* ---------- screens ---------- */
+function titleScreen() {
+  game.case = null; renderScene(); stats();
+  main.innerHTML = `<div class="title-screen box">
+    <p>You are Ms. Bucket, attorney at law. Your clients are tools and household things. They are probably innocent. Prove it with evidence.</p>
+    <button class="big" id="start">Take the first case</button></div>`;
+  document.getElementById('start').onclick = startCase;
+}
+
+function patienceHtml() {
+  return `<span class="patience">Judge's patience: <b>${'●'.repeat(game.patience)}${'○'.repeat(3 - game.patience)}</b></span>`;
+}
+
+function startCase() {
+  game.caseNo++; game.patience = 3; game.sel = null; game.selEv = null; game.struck = new Set(); game.answers = {}; game.wrongQ = null;
+  const c = game.case = genCase(game.caseNo);
+  renderScene(); stats();
+  main.innerHTML = `
+    <div class="charge"><small>The charge</small>${esc(c.charge)}${c.person ? `<small>Scene: the ${esc(c.S.name)}, at ${esc(c.hour)}</small>` : `<small>Time: ${esc(c.hour)}</small>`}</div>
+    <div id="dialog"></div>
+    <div id="panel"></div>`;
+  renderPanel();
+  const intro = [
+    ['judge', rand(['Court is now in session. Please be seated. Or leaned. Whatever your shape allows.', 'Order in the court. Thank you. That was enough order.'])],
+    ['pros', `The defendant, ${c.client.label}, is accused of the following: ${c.charge.replace(/\.$/, '')}. The prosecution will dig up the truth. That is a shovel joke.`],
+    ['client', rand([`I did not do it. I am just a little ${c.client.kind}.`, 'Hello. I am very nervous. Sorry.', 'I would like to go home now. Please.'])],
+    ['bucket', rand(['The defense is ready, Your Honor. My client is innocent. I can tell. Mostly from the face.', 'Ready, Your Honor. I have a good feeling about this. A bucketful, even.'])]
+  ];
+  if (c.mode === 'lies') {
+    intro.push(['pros', `The prosecution calls ${c.witness.label} to the stand.`]);
+    intro.push(['witness', rand(['Hello. I saw everything. Probably.', 'I am happy to help. I like being looked at.', 'I will tell the truth. Most of it.'])]);
+    intro.push(['bucket', 'Some of this testimony will be true. Some of it will not. I just need to find the parts that leak.']);
+  } else {
+    intro.push(['judge', `The defense may now present ${c.client.name}'s side of the story.`]);
+    intro.push(['bucket', 'We need a story that fits every piece of evidence. Let us be careful. And honest. Mostly careful.']);
+  }
+  talk(intro);
+}
+
+function renderPanel() {
+  const c = game.case; const panel = document.getElementById('panel');
+  const locked = panel.classList.contains('locked');
+  if (c.mode === 'lies') {
+    const found = [...game.struck].length;
+    panel.innerHTML = `
+      <div class="box">
+        <div class="row" style="align-items:baseline"><h3>Testimony of ${esc(c.witness.label)}</h3>${patienceHtml()}</div>
+        <p class="hint">Pick a statement you think is a lie, pick the evidence that proves it, then object. Lies found: ${found} of ${c.nLies}.</p>
+        <div class="list">${c.stmts.map((s, i) => `<button class="opt ${game.struck.has(i) ? 'struck' : ''} ${game.sel === i ? 'sel' : ''}" data-s="${i}" ${game.struck.has(i) ? 'disabled' : ''}>“${esc(s.text)}”</button>`).join('')}</div>
+      </div>
+      <div class="box"><h3>Evidence</h3>
+        <div class="evgrid">${c.evidence.map(e => `<button class="opt card ${game.selEv === e.id ? 'sel' : ''}" data-e="${e.id}"><div class="t">${esc(e.title)}</div><div class="d">${esc(e.text)}</div></button>`).join('')}</div>
+      </div>
+      <button class="big" id="object" ${game.sel === null || !game.selEv ? 'disabled' : ''}>OBJECTION!</button>`;
+    panel.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { game.sel = +b.dataset.s; renderPanel(); });
+    panel.querySelectorAll('[data-e]').forEach(b => b.onclick = () => { game.selEv = b.dataset.e; renderPanel(); });
+    document.getElementById('object').onclick = objectLie;
+  } else {
+    const allAnswered = c.questions.every((q, i) => game.answers[i] !== undefined);
+    panel.innerHTML = `
+      <div class="box"><h3>Evidence</h3>
+        <div class="evgrid">${c.evidence.map(e => `<div class="opt card static"><div class="t">${esc(e.title)}</div><div class="d">${esc(e.text)}</div></div>`).join('')}</div>
+      </div>
+      <div class="box">
+        <div class="row" style="align-items:baseline"><h3>${esc(c.client.name)}'s story</h3>${patienceHtml()}</div>
+        <p class="hint">Choose answers that fit every piece of evidence, then tell the court.</p>
+        ${c.questions.map((q, i) => `<div class="q"><div class="qt">${esc(q.q)}</div><div class="row">${q.opts.map((o, j) => `<button class="opt ${game.answers[i] === j ? 'sel' : ''} ${game.wrongQ === i && game.answers[i] === j ? 'wrong' : ''}" data-q="${i}" data-o="${j}">${esc(o.text)}</button>`).join('')}</div></div>`).join('')}
+      </div>
+      <button class="big" id="tell" ${allAnswered ? '' : 'disabled'}>Tell the court</button>`;
+    panel.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { game.answers[+b.dataset.q] = +b.dataset.o; game.wrongQ = null; renderPanel(); });
+    document.getElementById('tell').onclick = tellStory;
+  }
+  if (locked) panel.classList.add('locked');
+}
+
+/* ---------- mode A: catch the lies ---------- */
+function objectLie() {
+  const c = game.case; const s = c.stmts[game.sel]; const e = c.ev[game.selEv] || c.evidence.find(x => x.id === game.selEv);
+  const cn = c.client.name;
+  const why = {
+    place: `This security photo shows ${cn} next to ${c.P.landmark} at ${c.hour}. That is in the ${c.P.name}. My client cannot be in two rooms at once. My client is only a ${c.client.kind}.`,
+    residue: `The lab found only ${c.Rc.sub} on ${cn}. There was no ${c.Rs.sub} at all. Lab reports do not lie. They are too boring to lie.`,
+    motive: c.person
+      ? `${cn} gave ${c.target} a birthday card that says "You are my favorite." You do not write that to someone you cannot stand. Usually.`
+      : `${cn}'s diary says the ${c.S.name} is too spooky to go in. My client is a scaredy-${c.client.kind}. It is documented.`
+  };
+  if (s.lie && e.id === s.dim) {
+    game.struck.add(game.sel); game.sel = null; game.selEv = null;
+    const done = game.struck.size >= c.nLies;
+    const lines = [
+      ['bucket', `Objection! ${why[s.dim]}`],
+      ['judge', rand(['Sustained. The witness will stop saying that, please.', 'Sustained. That statement is struck from the record. Into the bin.', 'Sustained. That one did not hold water.'])],
+      ['witness', rand(['Oh. Hm. I may have been thinking of someone else.', 'My mistake. Everything looks alike from inside the drawer.', 'Okay. Yes. I made that up. Sorry.'])]
+    ];
+    renderPanel();
+    if (done) {
+      lines.push(['pros', 'The prosecution has... no further questions. I am very annoyed about it.']);
+      lines.push(['judge', 'This testimony has more holes than a colander. I have reached a verdict.']);
+      talk(lines, () => verdict(true));
+    } else talk(lines);
+  } else {
+    let lines = [['bucket', `Objection! Please look at the ${e.title.toLowerCase()}.`]];
+    if (!s.lie && e.id === s.dim) {
+      lines.push(['pros', 'That evidence agrees with the witness. Thank you for your help, defense.']);
+      lines.push(['judge', 'Overruled. Please read your own evidence, Ms. Bucket.']);
+    } else if (e.id === 'decoy') {
+      lines.push(['judge', `Overruled. That is a ${e.title.toLowerCase()}. I do not see how it is relevant. I am a little disappointed.`]);
+    } else if (!s.lie) {
+      lines.push(['judge', 'Overruled. I do not see anything wrong with that statement.']);
+    } else {
+      lines.push(['judge', 'Overruled. That evidence has nothing to do with that statement.']);
+    }
+    lines.push(['bucket', rand(['Understood. I will reflect on this. Quietly.', 'Noted. I am rinsing out my thoughts.', 'Right. Sorry. Carry on.'])]);
+    penalize(lines);
+  }
+}
+
+/* ---------- mode B: build the story ---------- */
+function tellStory() {
+  const c = game.case; const cn = c.client.name;
+  const wrongIdx = c.questions.findIndex((q, i) => !q.opts[game.answers[i]].ok);
+  const story = c.questions.map((q, i) => q.opts[game.answers[i]].text).join(' ');
+  if (wrongIdx === -1) {
+    talk([
+      ['client', story],
+      ['pros', 'The prosecution has no objections. I am very annoyed about it.'],
+      ['judge', 'The story fits the evidence. Snug as a lid. I have reached a verdict.']
+    ], () => verdict(true));
+    return;
+  }
+  const q = c.questions[wrongIdx]; const ans = q.opts[game.answers[wrongIdx]];
+  game.wrongQ = wrongIdx; renderPanel();
+  let why;
+  if (q.dim === 'place') why = `The security photo puts ${cn} next to ${c.P.landmark} at ${c.hour}. That is not in the ${ans.key}.`;
+  else if (q.dim === 'residue') why = `The lab found ${c.Rc.sub} on ${cn}. ${cap(ans.key)} would not do that.`;
+  else why = c.person ? `${cn} wrote "You are my favorite" on a birthday card to ${c.target}. That does not match.` : `${cn}'s own diary says the ${c.S.name} is too spooky. That does not match.`;
+  penalize([
+    ['client', story],
+    ['pros', `Objection! ${why}`],
+    ['judge', 'Sustained. The defense will try again. Gently.'],
+    ['bucket', rand(['Understood. Let us adjust the story. Slightly.', 'Right. That part had a leak. I will patch it.'])]
+  ]);
+}
+
+function penalize(lines) {
+  game.patience--;
+  renderPanel();
+  if (game.patience <= 0) {
+    lines.push(['judge', 'That is enough. My patience is all used up. Like a sponge. I have reached a verdict.']);
+    talk(lines, () => verdict(false));
+  } else talk(lines);
+}
+
+/* ---------- verdict ---------- */
+function verdict(win) {
+  const c = game.case;
+  if (win) game.won++; else game.lost++;
+  stats();
+  const ov = document.getElementById('overlay'); const card = document.getElementById('overlayCard');
+  card.innerHTML = win
+    ? `<h2 class="notguilty">NOT GUILTY</h2><p>${esc(c.client.label)} is free to go. Back to the drawer, with dignity.</p><button class="big" id="nextCase">Next case</button>`
+    : `<h2 class="guilty">GUILTY</h2><p>${esc(c.client.label)} is sentenced to the top shelf. Where nobody can reach. For a while.</p><button class="big" id="nextCase">Next case</button>`;
+  ov.style.display = 'flex';
+  document.getElementById('nextCase').onclick = () => { ov.style.display = 'none'; startCase(); };
+}
+
+titleScreen();
+</script>
+</body>
+</html>
