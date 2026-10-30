@@ -28,6 +28,21 @@
   header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   h1 { font-size: 22px; margin: 4px 0; letter-spacing: .5px; }
   .stats { color: var(--muted); font-size: 14px; }
+  .hdr-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+  .settings { position: relative; }
+  .settings summary { cursor: pointer; list-style: none; font-size: 14px; color: var(--muted); padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+  .settings summary::-webkit-details-marker { display: none; }
+  .settings-panel {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; width: 250px; display: grid; gap: 10px;
+    background: var(--panel); border: 2px solid var(--line); border-radius: 10px; padding: 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, .15); font-size: 14px;
+  }
+  .settings-panel label { display: grid; gap: 4px; }
+  .settings-panel label.inline { display: flex; align-items: center; gap: 8px; }
+  .settings-panel select, .settings-panel button { font: inherit; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line); background: #fff; color: var(--ink); }
+  .settings-panel button { cursor: pointer; }
+  .preview { min-height: 40px; padding: 6px 8px; border-radius: 6px; background: #2b2620; color: #fdf6e8; font-size: 13px; }
+  .preview b { color: #ffd76a; display: block; font-size: 12px; }
+  .unsaid { visibility: hidden; }
   #scene { width: 100%; height: auto; display: block; border-radius: 10px; border: 2px solid var(--line); background: #e9dcc6; }
   .charge {
     margin: 10px 0 6px; padding: 10px 12px; background: var(--panel);
@@ -102,7 +117,22 @@
 <div class="wrap">
   <header>
     <h1>Bucket, Esquire</h1>
-    <div class="stats" id="stats"></div>
+    <div class="hdr-right">
+      <div class="stats" id="stats"></div>
+      <details class="settings">
+        <summary aria-label="Sound and text settings">&#9881; Settings</summary>
+        <div class="settings-panel">
+          <label class="inline"><input type="checkbox" id="setSound"> Voice sounds</label>
+          <label>Voice style <select id="setStyle"></select></label>
+          <label>Volume <input type="range" id="setVol" min="0" max="1" step="0.05"></label>
+          <label>Text speed
+            <select id="setSpeed"><option value="slow">Slow</option><option value="normal">Normal</option><option value="fast">Fast</option><option value="instant">Instant</option></select>
+          </label>
+          <button id="setPreview">Preview a voice</button>
+          <div class="preview"><b id="previewWho">&nbsp;</b><span id="previewText"></span></div>
+        </div>
+      </details>
+    </div>
   </header>
   <div class="stage">
     <svg id="scene" viewBox="0 0 400 230" role="img" aria-label="Courtroom"></svg>
@@ -688,7 +718,8 @@ function makeChar(exclude) {
   const pers = rand(Object.keys(PERS));
   const feat = randFeat();
   for (const [part, opts] of Object.entries(PERS[pers].rest)) feat[part] = rand(opts);
-  return { tool, variant, name, pers, label: `${name} the ${label}`, kind: label.toLowerCase(), feat };
+  const voiceHz = Math.round((150 + Math.random() * 150) * PERS_PITCH[pers]);
+  return { tool, variant, name, pers, voiceHz, label: `${name} the ${label}`, kind: label.toLowerCase(), feat };
 }
 // A side character whose full name (name + tool) differs from everyone passed in. Shared first names are allowed.
 const someone = (...avoid) => {
@@ -1316,6 +1347,125 @@ function who(k) {
   if (k === 'witness') return [c.witness.label, 'char-witness'];
   return [k, null];
 }
+/* ---------- settings, voice blips, and typewriter text ---------- */
+// Per-viewer settings, remembered in this browser when possible.
+const SETTINGS = { sound: true, volume: 0.35, style: 'murmur', speed: 'normal' };
+try { Object.assign(SETTINGS, JSON.parse(localStorage.getItem('bucketEsquireSettings') || '{}')); } catch (e) {}
+function saveSettings() { try { localStorage.setItem('bucketEsquireSettings', JSON.stringify(SETTINGS)); } catch (e) {} }
+
+let actx = null;
+// The audio context is created on the first click (browsers require a user gesture).
+function audio() {
+  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+
+// Voice styles. Each builds a short sound at pitch f into `out`; `gain` balances loudness between styles
+// (measured offline so switching styles does not change how loud it is).
+const VOICES = {
+  murmur: { label: 'Murmur', dur: 0.075, gain: 4.49, make: (ctx, f, out, t) => {
+    // a buzzy tone through a vowel-like filter: reads as mumbled syllables
+    const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(f, t);
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.setValueAtTime(rand([500, 700, 900, 1150]), t); bp.Q.value = 2.5;
+    o.connect(bp); bp.connect(out); return [o]; } },
+  soft: { label: 'Soft', dur: 0.06, gain: 1, make: (ctx, f, out, t) => {
+    const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(f * 2, t);
+    o.connect(out); return [o]; } },
+  warm: { label: 'Warm', dur: 0.07, gain: 1.08, make: (ctx, f, out, t) => {
+    const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.setValueAtTime(f * 1.5, t);
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1100;
+    o.connect(lp); lp.connect(out); return [o]; } },
+  chirp: { label: 'Chirp', dur: 0.035, gain: 1.07, make: (ctx, f, out, t) => {
+    const o = ctx.createOscillator(); o.type = 'square'; o.frequency.setValueAtTime(f * 2.4, t);
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1800;
+    o.connect(lp); lp.connect(out); return [o]; } },
+  tok: { label: 'Tok', dur: 0.05, gain: 1.09, make: (ctx, f, out, t) => {
+    // a soft knock: the pitch drops quickly, like tapping wood
+    const o = ctx.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(f * 3.2, t); o.frequency.exponentialRampToValueAtTime(f * 1.6, t + 0.04);
+    o.connect(out); return [o]; } }
+};
+// One blip at roughly pitch f. ctx/t are passed in only by the loudness test.
+function blip(f, ctx, t) {
+  if (!SETTINGS.sound || SETTINGS.volume <= 0) return;
+  ctx = ctx || audio(); if (!ctx) return;
+  const v = VOICES[SETTINGS.style] || VOICES.murmur;
+  t = t === undefined ? ctx.currentTime + 0.005 : t;
+  const g = ctx.createGain(), peak = 0.3 * SETTINGS.volume * v.gain;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + v.dur);
+  g.connect(ctx.destination);
+  for (const s of v.make(ctx, f * (0.94 + Math.random() * 0.12), g, t)) { s.start(t); s.stop(t + v.dur + 0.02); }
+}
+
+// Voice pitch for each speaker. Clients and witnesses get theirs when created.
+const CAST_VOICE = { bucket: 230, judge: 105, pros: 140 };
+const PERS_PITCH = { timid: 1.15, dramatic: 1.08, cheerful: 1.1, smug: 0.95, hothead: 0.92, weary: 0.88, deadpan: 0.97 };
+function voiceOf(k) {
+  if (CAST_VOICE[k]) return CAST_VOICE[k];
+  const ch = game.case && game.case[k];
+  return ch && ch.voiceHz ? ch.voiceHz : 180;
+}
+
+// Types text into an element letter by letter, with a blip on every other letter.
+// The rest of the line is laid out invisibly from the start, so the box does not grow while typing.
+function makeTyper() {
+  let timer = null, finishNow = null;
+  return {
+    busy: () => !!finishNow,
+    finish: () => { if (finishNow) finishNow(); },
+    type(el, text, hz, onDone) {
+      if (finishNow) finishNow();
+      const render = n => { el.innerHTML = esc(text.slice(0, n)) + `<span class="unsaid">${esc(text.slice(n))}</span>`; };
+      finishNow = () => { clearTimeout(timer); timer = null; finishNow = null; el.textContent = text; if (onDone) onDone(); };
+      if (SETTINGS.speed === 'instant') { finishNow(); return; }
+      const base = { slow: 48, normal: 30, fast: 15 }[SETTINGS.speed] || 30;
+      let i = 0, letters = 0;
+      const step = () => {
+        if (i >= text.length) { if (finishNow) finishNow(); return; }
+        const ch = text[i++]; render(i);
+        if (/[A-Za-z0-9]/.test(ch) && letters++ % 2 === 0) blip(hz);
+        let delay = base;
+        const endOfSentence = /[.!?]/.test(ch) && (i === text.length || text[i] === ' ');
+        if (endOfSentence) delay += base * 7; else if (/[,;:]/.test(ch)) delay += base * 4;
+        timer = setTimeout(step, delay);
+      };
+      render(0); step();
+    }
+  };
+}
+const dialogTyper = makeTyper(), previewTyper = makeTyper();
+
+// Settings menu
+const PREVIEWS = [
+  ['Ms. Bucket', () => CAST_VOICE.bucket, 'The defense is ready, Your Honor.'],
+  ['Judge Iron', () => CAST_VOICE.judge, 'Order. This court is now in session.'],
+  ['Prosecutor Spade', () => CAST_VOICE.pros, 'The prosecution intends to prove it.'],
+  ['A timid client', () => 280, "I-I didn't do it... I promise."],
+  ['A weary witness', () => 165, "I saw it. Can we make this quick?"]
+];
+let previewIdx = 0;
+function initSettings() {
+  const $ = id => document.getElementById(id);
+  $('setStyle').innerHTML = Object.entries(VOICES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+  $('setSound').checked = SETTINGS.sound; $('setStyle').value = SETTINGS.style;
+  $('setVol').value = SETTINGS.volume; $('setSpeed').value = SETTINGS.speed;
+  $('setSound').onchange = e => { SETTINGS.sound = e.target.checked; saveSettings(); };
+  $('setStyle').onchange = e => { SETTINGS.style = e.target.value; saveSettings(); preview(); };
+  $('setVol').oninput = e => { SETTINGS.volume = +e.target.value; saveSettings(); };
+  $('setVol').onchange = () => preview();
+  $('setSpeed').onchange = e => { SETTINGS.speed = e.target.value; saveSettings(); };
+  $('setPreview').onclick = () => preview();
+}
+function preview() {
+  audio();
+  const [name, hz, text] = PREVIEWS[previewIdx++ % PREVIEWS.length];
+  document.getElementById('previewWho').textContent = name;
+  previewTyper.type(document.getElementById('previewText'), text, hz());
+}
+
 // Dialog box colors per speaker. Clients and witnesses are derived from their body color.
 function shade(hex, t) { // t < 0 darkens toward black, t > 0 lightens toward white
   const n = parseInt(hex.slice(1), 16), ch = [n >> 16, (n >> 8) & 255, n & 255];
@@ -1353,10 +1503,13 @@ function talk(lines, done) {
     for (const [r, e] of Object.entries(react || {})) if (r !== k) faces[r] = makeExpr(shiftEmo(r, e));
     game.faces = faces; renderScene();
     const th = dialogTheme(k); box.style.background = th.bg; box.style.borderColor = th.border; box.style.color = th.text;
-    box.innerHTML = `<div class="who" style="color:${th.name}">${esc(name)}</div><div class="say">${esc(text)}</div><div class="next">tap to continue ▸</div>`;
+    box.innerHTML = `<div class="who" style="color:${th.name}">${esc(name)}</div><div class="say"></div><div class="next">tap to continue ▸</div>`;
     setTalking(id); i++;
+    dialogTyper.type(box.querySelector('.say'), text, voiceOf(k));
   };
-  box.onclick = show; show();
+  // A tap while text is still typing finishes the line; the next tap moves on.
+  box.onclick = () => { audio(); if (dialogTyper.busy()) dialogTyper.finish(); else show(); };
+  show();
 }
 
 /* ---------- screens ---------- */
@@ -1373,6 +1526,7 @@ function patienceHtml() {
 }
 
 function startCase() {
+  audio();
   game.caseNo++; game.patience = 3; game.sel = null; game.selEv = null; game.struck = new Set(); game.answers = {}; game.wrongQ = null; game.punUsed = false; game.faces = {}; game.used = [];
   const c = game.case = genCase(game.caseNo);
   renderScene(); stats();
@@ -1580,6 +1734,7 @@ function verdict(win) {
   document.getElementById('nextCase').onclick = () => { ov.style.display = 'none'; startCase(); };
 }
 
+initSettings();
 titleScreen();
 </script>
 </body>
