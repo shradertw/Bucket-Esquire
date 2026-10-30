@@ -1664,7 +1664,7 @@ function tellStory() {
   const c = game.case;
   const wrongIdx = c.questions.findIndex((q, i) => !q.opts[game.answers[i]].ok);
   const story = storyText(c);
-  const lead = c.ev[game.selEv];
+  const lead = c.ev[game.selEv] || { dim: null, title: 'nothing', str: 0, reason: '' };
   if (wrongIdx === -1 && !c.extended && (!lead.dim || lead.str < STR_LEAD_NEEDED)) {
     // The story is right, but the evidence offered for it is not convincing: the case goes to a witness.
     const doubt = !lead.dim
